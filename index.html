@@ -1,1 +1,513 @@
-a
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MeetingAI">
+<meta name="theme-color" content="#070714">
+<title>MeetingAI 議事録</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;700&family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#070714;--bg2:#0d0d1a;--bg3:#1a1a2e;
+    --accent:#00d4ff;--accent2:#0080ff;
+    --green:#00ff88;--orange:#ff9500;--red:#ff4444;
+    --yellow:#ffaa00;--purple:#aa88ff;--pink:#ff6eb4;
+    --text:#e0e0e0;--muted:#888;--border:#1a1a2e;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  body{background:var(--bg);color:var(--text);font-family:'Noto Sans JP',sans-serif;min-height:100dvh;overscroll-behavior:none;}
+
+  /* API SCREEN */
+  .apiscreen{min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:radial-gradient(ellipse at 50% 0%,#1a0a2e,#070714);}
+  .apiscreen .logo{font-size:52px;margin-bottom:16px;}
+  .apiscreen h1{font-size:24px;color:var(--accent);margin-bottom:8px;font-family:'Noto Serif JP',serif;}
+  .apiscreen p{font-size:13px;color:var(--muted);text-align:center;line-height:1.9;margin-bottom:24px;}
+  .api-input{width:100%;background:#0d0d1a;border:1px solid rgba(0,212,255,0.3);border-radius:10px;color:var(--text);padding:14px 16px;font-size:14px;font-family:inherit;outline:none;margin-bottom:10px;}
+  .api-hint{font-size:11px;color:#445;text-align:center;margin-bottom:20px;line-height:1.9;}
+  .api-hint a{color:#667;}
+
+  /* TOPBAR */
+  .topbar{background:linear-gradient(90deg,#0d0d1a,#1a0a2e);border-bottom:1px solid rgba(0,212,255,0.15);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+  .topbar h1{font-size:17px;font-weight:700;color:var(--accent);letter-spacing:1px;}
+  .topbar .sub{font-size:10px;color:#445;margin-top:2px;}
+  .topbar .dt{font-size:11px;color:#445;}
+  .key-badge{font-size:10px;color:var(--green);background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.2);border-radius:20px;padding:3px 10px;cursor:pointer;}
+
+  /* TABS */
+  .tabs{display:flex;background:#0a0a1a;border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+  .tabs::-webkit-scrollbar{display:none;}
+  .tab{padding:13px 18px;background:transparent;border:none;border-bottom:2px solid transparent;color:#445;cursor:pointer;font-size:13px;font-family:inherit;white-space:nowrap;transition:color 0.2s;}
+  .tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:700;}
+
+  .main{padding:16px;max-width:680px;margin:0 auto;padding-bottom:40px;}
+  .card{background:var(--bg2);border:1px solid rgba(0,212,255,0.12);border-radius:14px;padding:18px;margin-bottom:16px;}
+  .section{background:var(--bg2);border-radius:12px;padding:16px;margin-bottom:14px;}
+  .section-title{font-size:13px;font-weight:700;margin-bottom:12px;}
+
+  /* RECORD */
+  .rec-btn{width:100px;height:100px;border-radius:50%;border:2px solid rgba(0,212,255,0.3);background:radial-gradient(circle,rgba(0,212,255,0.12),rgba(0,128,255,0.06));font-size:42px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 0 20px rgba(0,212,255,0.15);transition:all 0.3s;margin-bottom:16px;}
+  .rec-btn.recording{background:radial-gradient(circle,rgba(255,68,68,0.4),rgba(255,0,0,0.2));border-color:var(--red);box-shadow:0 0 30px rgba(255,68,68,0.5);animation:pulse 1.5s infinite;}
+  @keyframes pulse{0%,100%{box-shadow:0 0 20px rgba(255,68,68,0.5)}50%{box-shadow:0 0 45px rgba(255,68,68,0.8)}}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+  @keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
+  @keyframes fadein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .rec-status{font-size:12px;color:var(--muted);}
+  .rec-status.live{color:var(--red);animation:blink 1s infinite;}
+
+  .btn{width:100%;padding:14px;border:none;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:0.5px;transition:opacity 0.2s,transform 0.1s;}
+  .btn:active{transform:scale(0.98);}
+  .btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;}
+  .btn-stop{background:rgba(255,68,68,0.2);border:1px solid var(--red);color:#ff8888;}
+  .btn-outline{background:transparent;border:1px solid var(--accent);color:var(--accent);}
+  .btn:disabled{opacity:0.3;cursor:not-allowed;}
+
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;}
+  .req{color:var(--red);}
+  input,textarea{width:100%;background:#0d0d1a;border:1px solid #1e1e30;border-radius:8px;color:var(--text);padding:10px 12px;font-size:13px;font-family:inherit;line-height:1.7;outline:none;transition:border-color 0.2s;}
+  input:focus,textarea:focus{border-color:rgba(0,212,255,0.4);}
+  textarea{resize:vertical;}
+  audio{width:100%;margin-top:8px;filter:invert(0.85) hue-rotate(180deg);}
+  .transcript-box{background:#0a0a14;border:1px solid #1a1a2e;border-radius:8px;padding:12px;font-size:13px;color:#ccc;line-height:1.9;max-height:160px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;}
+
+  .error{background:rgba(255,68,68,0.1);border:1px solid rgba(255,68,68,0.4);border-radius:8px;padding:12px;color:#ff8888;font-size:13px;margin-bottom:14px;animation:fadein 0.3s;}
+
+  .minutes-header{background:linear-gradient(135deg,#0d0d1a,#1a1a2e);border:1px solid rgba(0,212,255,0.15);border-radius:14px;padding:20px;margin-bottom:14px;}
+  .minutes-title{font-family:'Noto Serif JP',serif;font-size:18px;color:var(--accent);margin-bottom:12px;}
+  .meta-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px;}
+  .meta-label{color:var(--muted);min-width:50px;}
+  .meta-val{color:var(--text);flex:1;}
+  .edit-btn{background:transparent;border:1px solid #333;color:#666;border-radius:4px;padding:2px 8px;font-size:10px;cursor:pointer;font-family:inherit;}
+  .save-btn{background:rgba(0,212,255,0.15);border:1px solid var(--accent);color:var(--accent);border-radius:4px;padding:2px 10px;font-size:10px;cursor:pointer;font-family:inherit;}
+  .edit-input{flex:1;background:#0d1117;border:1px solid rgba(0,212,255,0.3);border-radius:4px;color:var(--text);padding:2px 8px;font-size:12px;font-family:inherit;}
+
+  .task-table{width:100%;border-collapse:collapse;font-size:11px;}
+  .task-table th{padding:8px 10px;color:var(--accent);border-bottom:1px solid rgba(0,212,255,0.2);text-align:left;background:#0a1628;white-space:nowrap;}
+  .task-table td{padding:7px 10px;border-bottom:1px solid #12122a;}
+  .task-table tr:nth-child(even) td{background:rgba(255,255,255,0.02);}
+
+  .gantt-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .gantt-row{display:flex;align-items:center;margin-bottom:7px;height:22px;}
+  .gantt-label{width:100px;flex-shrink:0;font-size:10px;color:#bbb;padding-right:8px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+  .gantt-track{flex:1;position:relative;height:12px;background:#12122a;border-radius:3px;min-width:200px;}
+  .gantt-bar{position:absolute;height:100%;border-radius:3px;min-width:4px;}
+  .gantt-today{position:absolute;top:-4px;bottom:-4px;width:1px;background:var(--orange);opacity:0.7;}
+  .gantt-header{display:flex;margin-bottom:4px;}
+  .gantt-h-label{width:100px;flex-shrink:0;}
+  .gantt-h-dates{flex:1;display:flex;min-width:200px;}
+  .gantt-date{font-size:9px;color:#444;text-align:center;flex:1;}
+
+  .issue-card{background:#1a1200;border:1px solid rgba(255,170,0,0.2);border-radius:8px;padding:12px;margin-bottom:10px;}
+  .issue-title{color:#ffcc44;font-size:12px;margin-bottom:5px;}
+  .issue-measure{color:#aaa;font-size:12px;}
+  .imp-card{background:#1a0e00;border:1px solid rgba(255,149,0,0.2);border-radius:8px;padding:12px;margin-bottom:10px;}
+  .imp-rank{color:#ffcc00;font-size:13px;font-weight:700;margin-bottom:6px;}
+  .imp-action{color:#ccc;font-size:12px;line-height:1.8;}
+
+  .loading-bar{height:4px;background:#1a1a2e;border-radius:2px;overflow:hidden;position:relative;margin-top:10px;}
+  .loading-bar::after{content:'';position:absolute;width:30%;height:100%;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:shimmer 1.5s infinite;}
+
+  .guide{background:rgba(0,255,136,0.05);border:1px solid rgba(0,255,136,0.2);border-radius:12px;padding:16px;margin-top:20px;font-size:12px;line-height:2;color:#aaa;}
+  .guide-title{color:var(--green);font-weight:700;margin-bottom:8px;font-size:13px;}
+  .guide code{background:#1a2a1a;padding:1px 6px;border-radius:3px;color:var(--green);font-size:11px;}
+
+  .copy-btn{width:100%;padding:14px;background:rgba(0,212,255,0.08);border:1px solid var(--accent);border-radius:10px;color:var(--accent);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:0.5px;transition:background 0.2s;margin-top:6px;}
+  .copy-btn:active{background:rgba(0,212,255,0.2);}
+
+  .empty{text-align:center;padding:50px 20px;color:#334;}
+  .empty .icon{font-size:48px;margin-bottom:14px;}
+  .hidden{display:none!important;}
+  .fadein{animation:fadein 0.4s ease;}
+  ::-webkit-scrollbar{width:4px;height:4px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:#2a2a4a;border-radius:2px;}
+</style>
+</head>
+<body>
+
+<!-- ===== APIキー入力画面 ===== -->
+<div id="apiScreen" class="apiscreen">
+  <div class="logo">🎙</div>
+  <h1>MeetingAI</h1>
+  <p>自動議事録システムへようこそ！<br>AnthropicのAPIキーを入力してください<br>（次回から自動でログインします）</p>
+  <input class="api-input" type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." autocomplete="off" spellcheck="false">
+  <div class="api-hint">
+    🔒 キーはこのスマホの中にだけ保存されます<br>
+    外部に送信されることはありません<br><br>
+    キーをお持ちでない方 → <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>
+  </div>
+  <button class="btn btn-primary" onclick="saveApiKey()">✅ 保存してはじめる</button>
+  <div id="apiError" class="error hidden" style="margin-top:12px;width:100%;"></div>
+</div>
+
+<!-- ===== メインアプリ ===== -->
+<div id="mainApp" class="hidden">
+  <div class="topbar">
+    <div>
+      <h1>🎙 MeetingAI</h1>
+      <div class="sub">自動議事録システム</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div class="dt" id="topDt"></div>
+      <div class="key-badge" onclick="resetApiKey()">🔑 変更</div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('record')" id="tab-record">🎙 録音</button>
+    <button class="tab" onclick="switchTab('form')" id="tab-form">📝 情報入力</button>
+    <button class="tab" onclick="switchTab('minutes')" id="tab-minutes">📄 議事録</button>
+  </div>
+
+  <div class="main">
+    <div class="error hidden" id="errorBox"></div>
+
+    <!-- 録音 -->
+    <div id="pane-record">
+      <div class="card" style="text-align:center;">
+        <div class="rec-btn" id="recBtn" onclick="toggleRecord()">🎙</div>
+        <div class="rec-status" id="recStatus">タップして録音開始</div>
+        <div style="margin-top:16px;" id="stopWrap" class="hidden">
+          <button class="btn btn-stop" onclick="stopRec()">⏹ 録音を停止する</button>
+        </div>
+      </div>
+      <div class="card hidden" id="audioWrap">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">🎵 録音データ</div>
+        <audio id="audioPlayer" controls></audio>
+      </div>
+      <div class="card hidden" id="liveWrap">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">📝 リアルタイム文字起こし</div>
+        <div class="transcript-box" id="liveText"></div>
+      </div>
+      <div id="nextBtnWrap" class="hidden" style="margin-top:4px;">
+        <button class="btn btn-primary" onclick="switchTab('form')">次へ：情報入力 →</button>
+      </div>
+    </div>
+
+    <!-- 情報入力 -->
+    <div id="pane-form" class="hidden">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">会議情報を入力してAI議事録を生成します</p>
+      <div class="field">
+        <label>🎯 目的・ゴール設定（Goal） <span class="req">*</span></label>
+        <textarea id="goal" rows="3" placeholder="例：Q2の販売戦略を決定し、担当者とスケジュールを確定する"></textarea>
+      </div>
+      <div class="field">
+        <label>👥 参加者</label>
+        <input type="text" id="participants" placeholder="例：山田太郎、鈴木花子、佐藤一郎">
+      </div>
+      <div class="field">
+        <label>📝 文字起こし（録音から自動入力、修正可） <span class="req">*</span></label>
+        <textarea id="transcriptInput" rows="8" placeholder="録音から自動で文字起こしされます。手動入力・修正も可能です。"></textarea>
+      </div>
+      <button class="btn btn-primary" id="generateBtn" onclick="generateMinutes()">✨ AI議事録を生成</button>
+      <div class="hidden" id="genLoading" style="text-align:center;padding:16px;color:var(--accent);font-size:13px;">
+        ⚙️ AIが議事録を生成中...<div class="loading-bar"></div>
+      </div>
+    </div>
+
+    <!-- 議事録 -->
+    <div id="pane-minutes" class="hidden">
+      <div class="hidden" id="minLoading" style="text-align:center;padding:40px 20px;color:var(--accent);font-size:14px;">
+        ⚙️ AI議事録を生成中...<div class="loading-bar" style="margin-top:16px;"></div>
+      </div>
+      <div class="empty hidden" id="minEmpty">
+        <div class="icon">📄</div>
+        <div style="color:#445;">議事録はまだ生成されていません</div>
+        <button class="btn btn-outline" onclick="switchTab('record')" style="margin-top:16px;width:auto;padding:10px 24px;">録音を開始する</button>
+      </div>
+      <div id="minContent" class="hidden fadein">
+        <div class="minutes-header">
+          <div class="minutes-title" id="minTitle">📄 議事録</div>
+          <div class="meta-row"><span class="meta-label">日時：</span><span class="meta-val" id="minDatetime"></span></div>
+          <div class="meta-row" id="participantsRow">
+            <span class="meta-label">参加者：</span>
+            <span class="meta-val" id="minParticipants"></span>
+            <button class="edit-btn" onclick="editParticipants()">✎ 編集</button>
+          </div>
+          <div class="meta-row hidden" id="participantsEditRow">
+            <span class="meta-label">参加者：</span>
+            <input class="edit-input" id="participantsEdit" type="text">
+            <button class="save-btn" onclick="saveParticipants()">保存</button>
+          </div>
+        </div>
+        <div class="section" style="border-left:3px solid var(--green);">
+          <div class="section-title" style="color:var(--green);">✅ 結論</div>
+          <div id="minConclusion" style="font-size:13px;line-height:1.9;color:#c8f7d8;white-space:pre-wrap;"></div>
+        </div>
+        <div class="section" style="border-left:3px solid var(--yellow);">
+          <div class="section-title" style="color:var(--yellow);">⚠️ 残された課題と対策</div>
+          <div id="minIssues"></div>
+        </div>
+        <div class="section" style="border-left:3px solid var(--purple);">
+          <div class="section-title" style="color:var(--purple);">💬 議論されたこと</div>
+          <ul id="minDiscussion" style="padding-left:16px;"></ul>
+        </div>
+        <div class="section" style="border-left:3px solid var(--accent);">
+          <div class="section-title" style="color:var(--accent);">📋 タスク一覧</div>
+          <div style="overflow-x:auto;">
+            <table class="task-table">
+              <thead><tr><th>タスク項目</th><th>内容</th><th>担当者</th><th>対応案</th><th>期限</th></tr></thead>
+              <tbody id="minTasks"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="section" style="border-left:3px solid var(--pink);">
+          <div class="section-title" style="color:var(--pink);">📅 スケジュール（ガントチャート）</div>
+          <div class="gantt-wrap" id="minGantt"></div>
+        </div>
+        <div class="section" style="border-left:3px solid var(--orange);">
+          <div class="section-title" style="color:var(--orange);">🚀 TOP5 改善案 & アクションプラン</div>
+          <div id="minImprovements"></div>
+        </div>
+        <button class="copy-btn" id="copyBtn" onclick="copyMinutes()">📋 議事録テキストをコピー</button>
+        <div class="guide">
+          <div class="guide-title">📌 Googleサービス連携ガイド</div>
+          ① 「議事録テキストをコピー」ボタンでコピー<br>
+          ② <strong style="color:#ccc;">Google Drive「議事録」フォルダ</strong> → 新規ドキュメント→貼り付け<br>
+          &nbsp;&nbsp;&nbsp;ファイル名：<code id="guideFilename"></code><br>
+          ③ <strong style="color:#ccc;">Google Tasks</strong> → タスク一覧をTodo登録<br>
+          ④ <strong style="color:#ccc;">Google Calendar</strong> → 各タスク期限をイベント登録<br>
+          ⑤ <strong style="color:#ccc;">Google Drive「音声データ」フォルダ</strong> → 録音ファイルをアップロード
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let API_KEY='';
+let mediaRecorder=null,audioChunks=[],isRecording=false;
+let recognition=null,liveTranscript='';
+let minutesData=null,currentParticipants='',currentDatetime='';
+
+// ── APIキー管理 ──
+function saveApiKey(){
+  const k=document.getElementById('apiKeyInput').value.trim();
+  if(!k.startsWith('sk-ant-')){
+    document.getElementById('apiError').textContent='⚠️ APIキーは sk-ant- から始まる文字列です';
+    document.getElementById('apiError').classList.remove('hidden');
+    return;
+  }
+  API_KEY=k;
+  try{localStorage.setItem('mAiK',btoa(k));}catch(e){}
+  showApp();
+}
+function resetApiKey(){
+  if(!confirm('APIキーをリセットしますか？'))return;
+  try{localStorage.removeItem('mAiK');}catch(e){}
+  API_KEY='';
+  document.getElementById('mainApp').classList.add('hidden');
+  document.getElementById('apiScreen').classList.remove('hidden');
+  document.getElementById('apiKeyInput').value='';
+}
+function showApp(){
+  document.getElementById('apiScreen').classList.add('hidden');
+  document.getElementById('mainApp').classList.remove('hidden');
+  const n=new Date();
+  currentDatetime=`${n.getFullYear()}/${n.getMonth()+1}/${n.getDate()} ${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`;
+  document.getElementById('topDt').textContent=currentDatetime;
+  switchTab('record');
+}
+window.addEventListener('DOMContentLoaded',()=>{
+  try{const s=localStorage.getItem('mAiK');if(s){API_KEY=atob(s);showApp();}}catch(e){}
+});
+
+// ── タブ切替 ──
+function switchTab(id){
+  ['record','form','minutes'].forEach(t=>{
+    document.getElementById('pane-'+t).classList.toggle('hidden',t!==id);
+    document.getElementById('tab-'+t).classList.toggle('active',t===id);
+  });
+  if(id==='minutes'&&!minutesData){
+    document.getElementById('minEmpty').classList.remove('hidden');
+    document.getElementById('minContent').classList.add('hidden');
+    document.getElementById('minLoading').classList.add('hidden');
+  }
+}
+
+// ── 録音 ──
+function toggleRecord(){isRecording?stopRec():startRec();}
+async function startRec(){
+  try{
+    showError('');
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    audioChunks=[];
+    mediaRecorder=new MediaRecorder(stream);
+    mediaRecorder.ondataavailable=e=>audioChunks.push(e.data);
+    mediaRecorder.onstop=()=>{
+      const blob=new Blob(audioChunks,{type:'audio/webm'});
+      document.getElementById('audioPlayer').src=URL.createObjectURL(blob);
+      document.getElementById('audioWrap').classList.remove('hidden');
+      document.getElementById('nextBtnWrap').classList.remove('hidden');
+    };
+    mediaRecorder.start();
+    isRecording=true;
+    document.getElementById('recBtn').classList.add('recording');
+    document.getElementById('recBtn').textContent='⏹';
+    document.getElementById('recStatus').textContent='● 録音中...';
+    document.getElementById('recStatus').classList.add('live');
+    document.getElementById('stopWrap').classList.remove('hidden');
+    startSR();
+  }catch(e){showError('マイクへのアクセスが拒否されました。アドレスバー左の🔒→「マイク→許可」にしてください。');}
+}
+function stopRec(){
+  if(mediaRecorder&&isRecording){mediaRecorder.stop();mediaRecorder.stream.getTracks().forEach(t=>t.stop());}
+  stopSR();isRecording=false;
+  document.getElementById('recBtn').classList.remove('recording');
+  document.getElementById('recBtn').textContent='🎙';
+  document.getElementById('recStatus').textContent='録音完了！次のステップへ進んでください';
+  document.getElementById('recStatus').classList.remove('live');
+  document.getElementById('stopWrap').classList.add('hidden');
+  document.getElementById('transcriptInput').value=liveTranscript;
+}
+function startSR(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR)return;
+  recognition=new SR();recognition.lang='ja-JP';recognition.continuous=true;recognition.interimResults=true;
+  liveTranscript='';
+  recognition.onresult=e=>{
+    let interim='',final=liveTranscript;
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal)final+=e.results[i][0].transcript+'。';
+      else interim+=e.results[i][0].transcript;
+    }
+    liveTranscript=final;
+    document.getElementById('liveText').textContent=final+(interim?`[${interim}]`:'');
+    document.getElementById('liveWrap').classList.remove('hidden');
+  };
+  recognition.onerror=()=>{};
+  recognition.onend=()=>{if(isRecording)recognition.start();};
+  recognition.start();
+}
+function stopSR(){if(recognition){recognition.onend=null;recognition.stop();recognition=null;}}
+
+// ── AI生成 ──
+async function generateMinutes(){
+  const transcript=document.getElementById('transcriptInput').value.trim();
+  if(!transcript){showError('文字起こしが空です。');return;}
+  currentParticipants=document.getElementById('participants').value.trim();
+  const goal=document.getElementById('goal').value.trim();
+  document.getElementById('generateBtn').disabled=true;
+  document.getElementById('genLoading').classList.remove('hidden');
+  showError('');
+  switchTab('minutes');
+  document.getElementById('minEmpty').classList.add('hidden');
+  document.getElementById('minContent').classList.add('hidden');
+  document.getElementById('minLoading').classList.remove('hidden');
+
+  const prompt=`以下の文字起こしから議事録を作成してください。
+【日時】${currentDatetime}
+【目的】${goal||'未設定'}
+【参加者】${currentParticipants||'未設定'}
+【文字起こし】\n${transcript}
+
+以下のJSON形式のみで回答（コードブロック不要）:
+{"title":"タイトル","conclusion":"結論（箇条書き）","issues":[{"issue":"課題","measure":"対策"}],"discussion":["議論1"],"tasks":[{"item":"タスク","detail":"内容","owner":"担当者","plan":"対応案","deadline":"YYYY/MM/DD"}],"improvements":[{"rank":1,"title":"改善タイトル","action":"アクションプラン"}]}`;
+
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':API_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:4000,system:'議事録作成AIです。指定JSONのみで日本語回答。',messages:[{role:'user',content:prompt}]})
+    });
+    const data=await res.json();
+    const raw=(data.content||[]).map(b=>b.text||'').join('');
+    minutesData=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    renderMinutes(transcript);
+  }catch(e){
+    showError('生成に失敗しました。APIキーとネット接続を確認してください。');
+    switchTab('form');
+    document.getElementById('minLoading').classList.add('hidden');
+  }
+  document.getElementById('generateBtn').disabled=false;
+  document.getElementById('genLoading').classList.add('hidden');
+}
+
+// ── 議事録表示 ──
+function renderMinutes(transcript){
+  const m=minutesData;
+  document.getElementById('minLoading').classList.add('hidden');
+  document.getElementById('minContent').classList.remove('hidden');
+  document.getElementById('minTitle').textContent='📄 '+(m.title||'議事録');
+  document.getElementById('minDatetime').textContent=currentDatetime;
+  document.getElementById('minParticipants').textContent=currentParticipants||'（未設定）';
+  const fd=new Date();
+  const ds=`${fd.getFullYear()}${String(fd.getMonth()+1).padStart(2,'0')}${String(fd.getDate()).padStart(2,'0')}`;
+  document.getElementById('guideFilename').textContent=`${ds}_${m.title||'議事録'}`;
+  document.getElementById('minConclusion').textContent=m.conclusion||'';
+  const iss=document.getElementById('minIssues');iss.innerHTML='';
+  (m.issues||[]).forEach(i=>{iss.innerHTML+=`<div class="issue-card"><div class="issue-title">課題：${esc(i.issue)}</div><div class="issue-measure">対策：${esc(i.measure)}</div></div>`;});
+  const dis=document.getElementById('minDiscussion');dis.innerHTML='';
+  (m.discussion||[]).forEach(d=>{const li=document.createElement('li');li.style.cssText='color:#d4c8ff;font-size:13px;line-height:1.9;';li.textContent=d;dis.appendChild(li);});
+  const tk=document.getElementById('minTasks');tk.innerHTML='';
+  (m.tasks||[]).forEach(t=>{tk.innerHTML+=`<tr><td style="color:#e0e0e0">${esc(t.item)}</td><td style="color:#aaa">${esc(t.detail)}</td><td style="color:var(--accent)">${esc(t.owner)}</td><td style="color:#aaa">${esc(t.plan)}</td><td style="color:var(--yellow);white-space:nowrap">${esc(t.deadline)}</td></tr>`;});
+  renderGantt(m.tasks||[]);
+  const imp=document.getElementById('minImprovements');imp.innerHTML='';
+  (m.improvements||[]).forEach(i=>{imp.innerHTML+=`<div class="imp-card"><div class="imp-rank">#${i.rank} ${esc(i.title)}</div><div class="imp-action">▶ ${esc(i.action)}</div></div>`;});
+  window._lastTranscript=transcript;
+}
+
+function renderGantt(tasks){
+  const el=document.getElementById('minGantt');
+  const today=new Date();
+  const dates=tasks.map(t=>{if(!t.deadline)return null;const p=t.deadline.split('/');return p.length===3?new Date(+p[0],+p[1]-1,+p[2]):null;}).filter(Boolean);
+  if(!dates.length){el.innerHTML='<p style="color:#556;font-size:12px;">期限が設定されたタスクがありません</p>';return;}
+  const minD=new Date(Math.min(...dates));minD.setDate(minD.getDate()-2);
+  const maxD=new Date(Math.max(...dates));maxD.setDate(maxD.getDate()+2);
+  const totalMs=maxD-minD;const totalDays=totalMs/86400000;
+  let hdr='<div class="gantt-header"><div class="gantt-h-label"></div><div class="gantt-h-dates">';
+  for(let i=0;i<=totalDays;i+=3){const d=new Date(minD);d.setDate(d.getDate()+i);hdr+=`<div class="gantt-date" style="flex:3">${d.getMonth()+1}/${d.getDate()}</div>`;}
+  hdr+='</div></div>';
+  let rows='';
+  tasks.forEach(task=>{
+    if(!task.deadline)return;const p=task.deadline.split('/');if(p.length!==3)return;
+    const end=new Date(+p[0],+p[1]-1,+p[2]);
+    const sOff=Math.max((today-minD)/totalMs,0)*100;
+    const eOff=Math.min((end-minD)/totalMs,1)*100;
+    const bw=Math.max(eOff-sOff,1);
+    const tOff=Math.max(0,Math.min(((today-minD)/totalMs)*100,100));
+    const over=end<today;
+    rows+=`<div class="gantt-row"><div class="gantt-label" title="${esc(task.item)}">${esc(task.item)}</div><div class="gantt-track"><div class="gantt-bar" style="left:${sOff}%;width:${bw}%;background:${over?'linear-gradient(90deg,#ff4444,#ff8888)':'linear-gradient(90deg,#00d4ff,#0080ff)'};box-shadow:${over?'0 0 6px #ff4444':'0 0 6px #00d4ff'};"></div><div class="gantt-today" style="left:${tOff}%;"></div></div></div>`;
+  });
+  el.innerHTML=hdr+rows;
+}
+
+// ── 参加者編集 ──
+function editParticipants(){
+  document.getElementById('participantsRow').classList.add('hidden');
+  document.getElementById('participantsEditRow').classList.remove('hidden');
+  document.getElementById('participantsEdit').value=currentParticipants;
+}
+function saveParticipants(){
+  currentParticipants=document.getElementById('participantsEdit').value;
+  document.getElementById('minParticipants').textContent=currentParticipants||'（未設定）';
+  document.getElementById('participantsRow').classList.remove('hidden');
+  document.getElementById('participantsEditRow').classList.add('hidden');
+}
+
+// ── コピー ──
+function copyMinutes(){
+  if(!minutesData)return;
+  const m=minutesData;
+  const tasks=(m.tasks||[]).map((t,i)=>`  ${i+1}. ${t.item} | ${t.detail} | 担当:${t.owner} | ${t.plan} | 期限:${t.deadline}`).join('\n');
+  const issues=(m.issues||[]).map(i=>`  ・課題: ${i.issue}\n    対策: ${i.measure}`).join('\n');
+  const disc=(m.discussion||[]).map((d,i)=>`  ${i+1}. ${d}`).join('\n');
+  const imps=(m.improvements||[]).map(i=>`  #${i.rank} ${i.title}\n    ${i.action}`).join('\n');
+  const text=`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【議事録】${m.title}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n日時：${currentDatetime}\n参加者：${currentParticipants||'（未設定）'}\n\n■ 結論\n${m.conclusion}\n\n■ 残された課題と対策\n${issues}\n\n■ 議論されたこと\n${disc}\n\n■ タスク一覧\n${tasks}\n\n■ TOP5 改善案\n${imps}\n\n■ 文字起こし（原文）\n${window._lastTranscript||''}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`.trim();
+  const btn=document.getElementById('copyBtn');
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(text).then(()=>{btn.textContent='✅ コピー完了！';setTimeout(()=>{btn.textContent='📋 議事録テキストをコピー';},2500);});
+  }else{
+    const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;opacity:0;';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
+    btn.textContent='✅ コピー完了！';setTimeout(()=>{btn.textContent='📋 議事録テキストをコピー';},2500);
+  }
+}
+
+function showError(msg){const e=document.getElementById('errorBox');if(msg){e.textContent='⚠️ '+msg;e.classList.remove('hidden');}else{e.classList.add('hidden');}}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+</script>
+</body>
+</html>

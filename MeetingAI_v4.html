@@ -334,8 +334,8 @@ audio { width: 100%; margin-top: 10px; }
 <div id="apiScreen" class="apiscreen">
   <div class="logo">🎙</div>
   <h1>MeetingAI</h1>
-  <p>自動議事録システムへようこそ<br>AnthropicのAPIキーを入力してください</p>
-  <input class="api-input" type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." autocomplete="off" spellcheck="false">
+  <p>自動議事録システムへようこそ<br>Gemini APIキーを入力してください</p>
+  <input class="api-input" type="password" id="apiKeyInput" placeholder="AIzaSy..." autocomplete="off" spellcheck="false">
   <div class="api-hint">🔒 キーはこのデバイスの中にだけ保存されます</div>
   <button class="btn btn-primary" onclick="saveApiKey()" style="margin-top:0;">はじめる →</button>
   <div id="apiError" class="err hidden" style="margin-top:12px;width:100%;"></div>
@@ -551,8 +551,8 @@ let minutesData=null,currentParticipants='',currentDatetime='';
 // ================================================================
 function saveApiKey(){
   const k=document.getElementById('apiKeyInput').value.trim();
-  if(!k.startsWith('sk-ant-')){
-    document.getElementById('apiError').textContent='⚠️ APIキーは sk-ant- から始まる文字列です';
+  if(!k.startsWith('AIza')||k.length<30){
+    document.getElementById('apiError').textContent='⚠️ APIキーは AIzaSy... から始まる文字列です';
     document.getElementById('apiError').classList.remove('hidden');
     return;
   }
@@ -770,13 +770,19 @@ JSON形式のみで回答（コードブロック不要）:
 {"title":"会議タイトル","conclusion":"結論（具体的な数字・固有名詞を含む詳細な箇条書き、改行区切り）","issues":[{"issue":"具体的な課題（背景含む）","measure":"具体的な対策","actions":["課題解決のアクション案1（具体的・実行可能）","アクション案2（具体的・実行可能）","アクション案3（具体的・実行可能）"]}],"discussion":["テーマ名：詳細な議論内容（3〜4行。背景・各自の意見・論点・決定事項を含む詳細説明）"],"tasks":[{"item":"タスク名（省略なし完全文章）","detail":"詳細内容（具体的に）","owner":"担当者名","plan":"具体的対応案","deadline":"YYYY/MM/DD","depends_on":null}],"improvements":[{"rank":1,"title":"改善タイトル","action":"具体的アクションプラン（誰が・何を・いつまでに）"}]}`;
 
   try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
+    const systemPrompt='あなたは優秀な議事録作成AIです。指定JSONのみで日本語回答。以下のルールを厳守してください：①タスク名・内容は省略せず完全な文章で記載。②議論されたことは1テーマにつき3〜4行の詳細な説明で記載。③結論・課題・対策も具体的かつ詳細に記載。④音声から読み取れる全ての重要情報を漏らさず記載。⑤省略・要約しすぎず、参加者が会議内容を正確に把握できる粒度で記載。';
+    const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`,{
       method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':API_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:8000,system:'あなたは優秀な議事録作成AIです。指定JSONのみで日本語回答。以下のルールを厳守してください：①タスク名・内容は省略せず完全な文章で記載。②議論されたことは1テーマにつき3〜4行の詳細な説明で記載。③結論・課題・対策も具体的かつ詳細に記載。④音声から読み取れる全ての重要情報を漏らさず記載。⑤省略・要約しすぎず、参加者が会議内容を正確に把握できる粒度で記載。',messages:[{role:'user',content:prompt}]})
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        system_instruction:{parts:[{text:systemPrompt}]},
+        contents:[{role:'user',parts:[{text:prompt}]}],
+        generationConfig:{maxOutputTokens:8000,temperature:0.3}
+      })
     });
     const data=await res.json();
-    const raw=(data.content||[]).map(b=>b.text||'').join('');
+    const raw=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
+    if(!raw)throw new Error('Gemini response empty');
     minutesData=JSON.parse(raw.replace(/```json|```/g,'').trim());
     renderMinutes(transcript);
   }catch(e){

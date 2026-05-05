@@ -474,13 +474,13 @@ audio { width: 100%; margin-top: 10px; }
         <div class="min-card" style="border-left-color:var(--accent);">
           <div class="sec-title" style="color:var(--accent);">📋 タスク一覧</div>
           <div style="overflow-x:auto;border-radius:var(--radius-sm);border:1px solid var(--border);">
-            <table class="task-table">
+            <table class="task-table" id="taskTableEl">
               <thead><tr>
-                <th style="min-width:140px;">タスク項目</th>
-                <th style="min-width:180px;">内容</th>
-                <th style="min-width:90px;">担当者</th>
+                <th style="min-width:180px;">タスク項目</th>
+                <th style="min-width:160px;">内容</th>
+                <th style="min-width:120px;">担当者</th>
                 <th style="min-width:140px;">対応案</th>
-                <th style="min-width:100px;">期限</th>
+                <th style="min-width:150px;">期限</th>
               </tr></thead>
               <tbody id="minTasks"></tbody>
             </table>
@@ -752,18 +752,28 @@ async function generateMinutes(){
   document.getElementById('minContent').classList.add('hidden');
   document.getElementById('minLoading').classList.remove('hidden');
 
-  const prompt=`以下の文字起こしから議事録を作成してください。
-【日時】${currentDatetime}【目的】${goal||'未設定'}【参加者】${currentParticipants||'未設定'}
-【文字起こし】\n${transcript}
+  const prompt=`以下の音声文字起こしから、詳細な議事録を作成してください。
+【日時】${currentDatetime}
+【目的】${goal||'未設定'}
+【参加者】${currentParticipants||'未設定'}
+【文字起こし】
+${transcript}
+
+以下のルールで議事録を作成してください：
+- 議論されたことは1テーマにつき3〜4行の詳細な説明（背景・論点・決定事項を含む）
+- 結論は具体的な数字・日付・固有名詞を含む詳細な内容
+- 課題と対策は具体的かつ実行可能な内容
+- タスクは担当者・期限・具体的な内容を省略なく記載
+- 音声から読み取れる重要情報を漏らさず記載
 
 JSON形式のみで回答（コードブロック不要）:
-{"title":"タイトル","conclusion":"結論（改行区切り箇条書き）","issues":[{"issue":"課題","measure":"対策"}],"discussion":["議論ポイント"],"tasks":[{"item":"タスク名（完全な文章で）","detail":"詳細内容","owner":"担当者","plan":"対応案","deadline":"YYYY/MM/DD","depends_on":null}],"improvements":[{"rank":1,"title":"改善タイトル","action":"具体的アクションプラン"}]}`;
+{"title":"会議タイトル","conclusion":"結論（具体的な数字・固有名詞を含む詳細な箇条書き、改行区切り）","issues":[{"issue":"具体的な課題（背景含む）","measure":"具体的な対策","actions":["課題解決のアクション案1（具体的・実行可能）","アクション案2（具体的・実行可能）","アクション案3（具体的・実行可能）"]}],"discussion":["テーマ名：詳細な議論内容（3〜4行。背景・各自の意見・論点・決定事項を含む詳細説明）"],"tasks":[{"item":"タスク名（省略なし完全文章）","detail":"詳細内容（具体的に）","owner":"担当者名","plan":"具体的対応案","deadline":"YYYY/MM/DD","depends_on":null}],"improvements":[{"rank":1,"title":"改善タイトル","action":"具体的アクションプラン（誰が・何を・いつまでに）"}]}`;
 
   try{
     const res=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'Content-Type':'application/json','x-api-key':API_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:4000,system:'議事録作成AIです。指定JSONのみで日本語回答。タスク名は省略せず完全な文章で記載。',messages:[{role:'user',content:prompt}]})
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:8000,system:'あなたは優秀な議事録作成AIです。指定JSONのみで日本語回答。以下のルールを厳守してください：①タスク名・内容は省略せず完全な文章で記載。②議論されたことは1テーマにつき3〜4行の詳細な説明で記載。③結論・課題・対策も具体的かつ詳細に記載。④音声から読み取れる全ての重要情報を漏らさず記載。⑤省略・要約しすぎず、参加者が会議内容を正確に把握できる粒度で記載。',messages:[{role:'user',content:prompt}]})
     });
     const data=await res.json();
     const raw=(data.content||[]).map(b=>b.text||'').join('');
@@ -792,12 +802,21 @@ function renderMinutes(transcript){
 
   // Issues
   const iss=document.getElementById('minIssues');iss.innerHTML='';
-  (m.issues||[]).forEach(i=>{
-    iss.innerHTML+=`<div class="issue-item">
+  (m.issues||[]).forEach((issue,ii)=>{
+    const actions=(issue.actions||[]).map((a,ai)=>`
+      <div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid rgba(5,150,105,0.1);">
+        <span style="min-width:20px;height:20px;background:var(--green);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;">${ai+1}</span>
+        <span style="font-size:12px;color:var(--text);line-height:1.6;">${esc(a)}</span>
+      </div>`).join('');
+    iss.innerHTML+=`<div class="issue-item" style="margin-bottom:14px;">
       <div class="issue-label">課題</div>
-      <div class="issue-text">${esc(i.issue)}</div>
-      <div class="measure-label" style="margin-top:8px;">対策</div>
-      <div class="measure-text">${esc(i.measure)}</div>
+      <div class="issue-text" style="margin-bottom:10px;">${esc(issue.issue)}</div>
+      <div style="background:rgba(5,150,105,0.06);border:1px solid rgba(5,150,105,0.15);border-radius:8px;padding:10px 12px;margin-bottom:8px;">
+        <div style="font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">🎯 AIが提案するアクション案 TOP3</div>
+        ${actions||'<div style="color:var(--muted);font-size:12px;">アクション案を生成中...</div>'}
+      </div>
+      <div class="measure-label">対策方針</div>
+      <div class="measure-text">${esc(issue.measure)}</div>
     </div>`;
   });
 
@@ -817,18 +836,57 @@ function renderMinutes(transcript){
 
   const tk=document.getElementById('minTasks');tk.innerHTML='';
   sortedTasks.forEach((t,i)=>{
-    const isOver=t.deadline&&new Date(t.deadline)<new Date();
-    tk.innerHTML+=`<tr>
-      <td style="font-weight:600;color:var(--text);">${esc(t.item)}</td>
-      <td style="color:var(--text2);">${esc(t.detail)}</td>
-      <td><span class="tag">${esc(t.owner)}</span></td>
-      <td style="color:var(--text2);">${esc(t.plan)}</td>
-      <td style="font-weight:600;color:${isOver?'var(--red)':'var(--accent)'};white-space:nowrap;">${esc(t.deadline)}</td>
+    const isOver=t.deadline&&t.deadline!=='未定'&&new Date(t.deadline.replace(/\//g,'-'))<new Date();
+    // Convert deadline to input date format
+    let deadlineInput='';
+    if(t.deadline&&t.deadline.includes('/')){
+      const p=t.deadline.split('/');
+      if(p.length===3)deadlineInput=`${p[0]}-${String(p[1]).padStart(2,'0')}-${String(p[2]).padStart(2,'0')}`;
+    }
+
+    // Google Calendar link
+    let calLink='';
+    if(deadlineInput){
+      const ds=deadlineInput.replace(/-/g,'');
+      const title=encodeURIComponent(`【${t.item}】担当:${t.owner}`);
+      const details=encodeURIComponent(`内容: ${t.detail}\n対応案: ${t.plan}`);
+      calLink=`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${ds}/${ds}&details=${details}`;
+    }
+
+    const rowBg=isOver?'background:rgba(220,38,38,0.04);':'';
+
+    // Build participants options
+    const pList=currentParticipants
+      ?currentParticipants.split(/[、,，\s]+/).filter(p=>p.trim())
+      :[];
+    const ownerOptions=['',  ...pList, '全員', '未定']
+      .map(p=>`<option value="${esc(p)}" ${(t.owner||'')===(p)?'selected':''}>${p||'未設定'}</option>`)
+      .join('');
+
+    tk.innerHTML+=`<tr style="${rowBg}">
+      <td style="font-weight:600;color:var(--text);min-width:180px;${isOver?'border-left:3px solid var(--red);padding-left:11px;':''}">
+        ${isOver?'<span style="font-size:10px;color:var(--red);font-weight:700;display:block;margin-bottom:3px;">⚠️ 期限超過</span>':''}
+        ${esc(t.item)}
+      </td>
+      <td style="color:var(--text2);font-size:12px;min-width:160px;">${esc(t.detail)}</td>
+      <td style="min-width:120px;">
+        <select onchange="updateTaskOwner(${i},this.value)"
+          style="width:100%;padding:6px 10px;border-radius:20px;border:1.5px solid rgba(37,99,235,0.3);background:var(--accent-light);color:var(--accent);font-size:12px;font-weight:700;cursor:pointer;outline:none;font-family:inherit;">
+          ${ownerOptions}
+        </select>
+      </td>
+      <td style="color:var(--text2);font-size:12px;min-width:140px;">${esc(t.plan)}</td>
+      <td style="min-width:150px;">
+        <input type="date" value="${deadlineInput}"
+          onchange="updateTaskDeadline(${i},this.value)"
+          style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg3);color:${isOver?'var(--red)':'var(--text)'};font-size:13px;font-weight:700;cursor:pointer;outline:none;font-family:inherit;">
+        ${calLink?`<a href="${calLink}" target="_blank" style="font-size:10px;color:var(--accent);text-decoration:none;display:block;margin-top:4px;">📅 Googleカレンダーに追加</a>`:''}
+      </td>
     </tr>`;
   });
 
-  // Gantt - sorted by deadline
-  renderGantt(sortedTasks);
+  // Gantt - ALL tasks including undated ones
+  renderGanttAll(minutesData.tasks||[]);
 
   // Improvements
   const imp=document.getElementById('minImprovements');imp.innerHTML='';
@@ -843,6 +901,166 @@ function renderMinutes(transcript){
   document.getElementById('tasksMsg').classList.add('hidden');
   document.getElementById('driveMsg').classList.add('hidden');
   window._lastTranscript=transcript;
+}
+
+
+// ================================================================
+// GANTT - ALL TASKS (dated first sorted, undated at bottom)
+// ================================================================
+function renderGanttAll(allTasks){
+  const el=document.getElementById('minGantt');
+  const today=new Date();
+
+  // Separate dated and undated tasks
+  const datedTasks=allTasks.filter(t=>t.deadline&&t.deadline!=='未定'&&t.deadline.includes('/'));
+  const undatedTasks=allTasks.filter(t=>!t.deadline||t.deadline==='未定'||!t.deadline.includes('/'));
+
+  // Sort dated by deadline
+  datedTasks.sort((a,b)=>new Date(a.deadline.replace(/\//g,'-'))-new Date(b.deadline.replace(/\//g,'-')));
+
+  // For undated tasks, check dependencies - place near related tasks
+  const orderedUndated=[];
+  const placedUndated=new Set();
+
+  // First pass: undated tasks with depends_on
+  undatedTasks.forEach(t=>{
+    if(t.depends_on!==null&&t.depends_on!==undefined){
+      orderedUndated.push({...t,_related:true});
+      placedUndated.add(t.item);
+    }
+  });
+  // Second pass: truly undated with no relation
+  undatedTasks.forEach(t=>{
+    if(!placedUndated.has(t.item)){
+      orderedUndated.push({...t,_related:false});
+    }
+  });
+
+  // Final ordered list: dated first, then related undated, then unrelated undated
+  const relatedUndated=orderedUndated.filter(t=>t._related);
+  const unrelatedUndated=orderedUndated.filter(t=>!t._related);
+  const tasks=[...datedTasks,...relatedUndated,...unrelatedUndated];
+
+  if(!tasks.length){el.innerHTML='<p style="color:var(--muted);font-size:13px;padding:16px;">タスクがありません</p>';return;}
+
+  // Date range from dated tasks only
+  const dates=datedTasks.map(t=>{const p=t.deadline.split('/');return new Date(+p[0],+p[1]-1,+p[2]);});
+  let minD,maxD;
+  if(dates.length){
+    minD=new Date(Math.min(...dates));minD.setDate(minD.getDate()-2);
+    maxD=new Date(Math.max(...dates));maxD.setDate(maxD.getDate()+3);
+  }else{
+    minD=new Date(today);minD.setDate(minD.getDate()-3);
+    maxD=new Date(today);maxD.setDate(maxD.getDate()+30);
+  }
+  const totalMs=maxD-minD;
+
+  const containerW=el.clientWidth||700;
+  const labelW=260;
+  const barAreaW=containerW-labelW-4;
+  const rowH=44;
+  const headerH=28;
+  const legendH=34;
+  const separatorH=undatedTasks.length>0?24:0;
+  const H=headerH+(datedTasks.length+relatedUndated.length)*rowH+separatorH+unrelatedUndated.length*rowH+legendH+10;
+
+  let svg=`<svg class="gantt-svg" width="${containerW}" height="${H}" style="display:block;width:100%;" viewBox="0 0 ${containerW} ${H}" preserveAspectRatio="xMidYMid meet">`;
+  svg+=`<rect width="${containerW}" height="${H}" fill="#FAFBFD" rx="8"/>`;
+
+  // Grid lines
+  const totalDays=Math.ceil(totalMs/86400000);
+  const step=Math.max(1,Math.floor(totalDays/8));
+  for(let i=0;i<=totalDays;i+=step){
+    const d=new Date(minD);d.setDate(d.getDate()+i);
+    const x=labelW+(i/totalDays)*barAreaW;
+    svg+=`<line x1="${x}" y1="${headerH}" x2="${x}" y2="${H-legendH}" stroke="#E2E6EF" stroke-width="1"/>`;
+    svg+=`<text x="${x+2}" y="18" fill="#8A90A8" font-size="9" font-family="DM Sans,sans-serif">${d.getMonth()+1}/${d.getDate()}</text>`;
+  }
+
+  // Today line
+  const todayOff=((today-minD)/totalMs);
+  if(todayOff>=0&&todayOff<=1){
+    const tx=labelW+todayOff*barAreaW;
+    svg+=`<rect x="${tx-1}" y="${headerH}" width="2" height="${H-headerH-legendH}" fill="#2563EB" opacity="0.4"/>`;
+    svg+=`<text x="${tx+3}" y="${headerH+10}" fill="#2563EB" font-size="9" font-weight="700" font-family="DM Sans,sans-serif">今日</text>`;
+  }
+
+  const positions=[];
+  let rowIndex=0;
+
+  // Draw rows
+  tasks.forEach((task,i)=>{
+    // Separator before unrelated undated tasks
+    if(i===datedTasks.length+relatedUndated.length&&unrelatedUndated.length>0){
+      const sepY=headerH+rowIndex*rowH;
+      svg+=`<rect x="0" y="${sepY}" width="${containerW}" height="${separatorH}" fill="#F0F2F7"/>`;
+      svg+=`<text x="8" y="${sepY+16}" fill="#8A90A8" font-size="10" font-weight="600" font-family="DM Sans,sans-serif">📋 期日未定のタスク</text>`;
+      rowIndex++;
+    }
+
+    const y=headerH+rowIndex*rowH;
+    const cy=y+rowH/2;
+    const isEven=rowIndex%2===0;
+    if(isEven)svg+=`<rect x="0" y="${y}" width="${containerW}" height="${rowH}" fill="rgba(0,0,0,0.012)"/>`;
+
+    // Label (3 lines max)
+    const label=task.item||'';
+    const charsPerLine=Math.floor((labelW-10)/6);
+    const lines=[];
+    for(let li=0;li<label.length;li+=charsPerLine){lines.push(label.substring(li,li+charsPerLine));}
+    const maxLines=Math.min(lines.length,3);
+    const lineH=11;
+    const startY=cy-(maxLines-1)*lineH/2;
+    lines.slice(0,maxLines).forEach((ln,li)=>{
+      svg+=`<text x="6" y="${startY+li*lineH}" fill="#1A1D2E" font-size="10" font-family="Noto Sans JP,sans-serif" font-weight="${li===0?'500':'400'}">${esc(ln)}</text>`;
+    });
+
+    // Bar for dated tasks
+    if(task.deadline&&task.deadline!=='未定'&&task.deadline.includes('/')){
+      const p=task.deadline.split('/');
+      const end=new Date(+p[0],+p[1]-1,+p[2]);
+      const startOff=Math.max(((today-minD)/totalMs),0);
+      const endOff=Math.min(((end-minD)/totalMs),1);
+      const startX=labelW+startOff*barAreaW;
+      const endX=labelW+Math.max(endOff*barAreaW,startOff*barAreaW+4);
+      const barW=Math.max(endX-startX,6);
+      const over=end<today;
+
+      svg+=`<rect x="${labelW}" y="${cy-8}" width="${barAreaW}" height="16" fill="#EFF2F8" rx="4"/>`;
+      svg+=`<defs><linearGradient id="bg${i}"><stop offset="0%" stop-color="${over?'#DC2626':'#2563EB'}"/><stop offset="100%" stop-color="${over?'#EF4444':'#3B82F6'}" stop-opacity="0.8"/></linearGradient></defs>`;
+      svg+=`<rect x="${startX}" y="${cy-8}" width="${barW}" height="16" fill="url(#bg${i})" rx="4"/>`;
+      svg+=`<text x="${endX+3}" y="${cy+4}" fill="${over?'#DC2626':'#1A1D2E'}" font-size="10" font-weight="700" font-family="DM Sans,sans-serif">${p[1]}/${p[2]}</text>`;
+      positions.push({startX,endX,cy,taskItem:task.item});
+    } else {
+      // Undated - show dashed line
+      svg+=`<rect x="${labelW}" y="${cy-8}" width="${barAreaW}" height="16" fill="#F0F2F7" rx="4"/>`;
+      svg+=`<text x="${labelW+barAreaW/2}" y="${cy+4}" fill="#8A90A8" font-size="10" text-anchor="middle" font-family="DM Sans,sans-serif">期日未定</text>`;
+      positions.push(null);
+    }
+
+    rowIndex++;
+  });
+
+  // Dependency arrows
+  tasks.forEach((task,i)=>{
+    if(!task.depends_on&&task.depends_on!==0)return;
+    const depIdx=typeof task.depends_on==='number'?task.depends_on-1:parseInt(task.depends_on)-1;
+    if(isNaN(depIdx)||depIdx<0||depIdx>=positions.length)return;
+    const from=positions[depIdx];const to=positions[i];
+    if(!from||!to)return;
+    svg+=`<path d="M${from.endX},${from.cy} C${from.endX+20},${from.cy} ${to.startX-20},${to.cy} ${to.startX},${to.cy}" stroke="#DB2777" stroke-width="1.5" fill="none" stroke-dasharray="4,3" marker-end="url(#arr)"/>`;
+  });
+  svg+=`<defs><marker id="arr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#DB2777"/></marker></defs>`;
+
+  // Legend
+  const ly=H-legendH+10;
+  svg+=`<rect x="${labelW}" y="${ly}" width="12" height="8" fill="#2563EB" rx="2" opacity="0.85"/><text x="${labelW+16}" y="${ly+7}" fill="#4A4F6A" font-size="10" font-family="DM Sans,sans-serif">進行中</text>`;
+  svg+=`<rect x="${labelW+65}" y="${ly}" width="12" height="8" fill="#DC2626" rx="2"/><text x="${labelW+81}" y="${ly+7}" fill="#4A4F6A" font-size="10" font-family="DM Sans,sans-serif">期限超過</text>`;
+  svg+=`<rect x="${labelW+140}" y="${ly}" width="12" height="8" fill="#F0F2F7" rx="2" stroke="#CBD5E1" stroke-width="1"/><text x="${labelW+156}" y="${ly+7}" fill="#4A4F6A" font-size="10" font-family="DM Sans,sans-serif">期日未定</text>`;
+  svg+=`<line x1="${labelW+225}" y1="${ly+4}" x2="${labelW+245}" y2="${ly+4}" stroke="#DB2777" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arr)"/><text x="${labelW+249}" y="${ly+7}" fill="#4A4F6A" font-size="10" font-family="DM Sans,sans-serif">依存</text>`;
+
+  svg+='</svg>';
+  el.innerHTML=svg;
 }
 
 // ================================================================
@@ -862,9 +1080,9 @@ function renderGantt(tasks){
 
   // Fit to container width
   const containerW=el.clientWidth||700;
-  const labelW=160;
+  const labelW=260;
   const barAreaW=containerW-labelW-4;
-  const rowH=34;
+  const rowH=44;
   const headerH=28;
   const legendH=30;
   const H=headerH+(validTasks.length*rowH)+legendH+10;
@@ -872,16 +1090,12 @@ function renderGantt(tasks){
   let svg=`<svg class="gantt-svg" width="${containerW}" height="${H}" style="display:block;width:100%;" viewBox="0 0 ${containerW} ${H}" preserveAspectRatio="xMidYMid meet">`;
   svg+=`<rect width="${containerW}" height="${H}" fill="#FAFBFD" rx="8"/>`;
 
-  // Grid
-  for(let i=0;i<=totalDays;i++){
+  // Grid - 日付ラベルは3日ごとのみ、グリッド線のみシンプルに
+  for(let i=0;i<=totalDays;i+=Math.max(1,Math.floor(totalDays/8))){
     const d=new Date(minD);d.setDate(d.getDate()+i);
     const x=labelW+(i/totalDays)*barAreaW;
-    const isWeekend=d.getDay()===0||d.getDay()===6;
-    if(isWeekend)svg+=`<rect x="${x}" y="${headerH}" width="${barAreaW/totalDays}" height="${H-headerH-legendH}" fill="rgba(0,0,0,0.02)"/>`;
-    if(i%3===0||totalDays<=10){
-      svg+=`<line x1="${x}" y1="${headerH}" x2="${x}" y2="${H-legendH}" stroke="#E2E6EF" stroke-width="1"/>`;
-      svg+=`<text x="${x+2}" y="18" fill="#8A90A8" font-size="9" font-family="DM Sans,sans-serif">${d.getMonth()+1}/${d.getDate()}</text>`;
-    }
+    svg+=`<line x1="${x}" y1="${headerH}" x2="${x}" y2="${H-legendH}" stroke="#E2E6EF" stroke-width="1"/>`;
+    svg+=`<text x="${x+2}" y="18" fill="#8A90A8" font-size="9" font-family="DM Sans,sans-serif">${d.getMonth()+1}/${d.getDate()}</text>`;
   }
 
   // Today
@@ -900,10 +1114,17 @@ function renderGantt(tasks){
     const isEven=i%2===0;
     if(isEven)svg+=`<rect x="0" y="${y}" width="${containerW}" height="${rowH}" fill="rgba(0,0,0,0.015)"/>`;
 
-    // Label - full width
+    // Label - full task name, 3 lines max
     const label=task.item||'';
-    const displayLabel=label.length>18?label.substring(0,18)+'…':label;
-    svg+=`<text x="8" y="${cy+4}" fill="#1A1D2E" font-size="11" font-family="Noto Sans JP,sans-serif" font-weight="500">${esc(displayLabel)}</text>`;
+    const charsPerLine=Math.floor((labelW-10)/6);
+    const lines=[];
+    for(let li=0;li<label.length;li+=charsPerLine){lines.push(label.substring(li,li+charsPerLine));}
+    const maxLines=Math.min(lines.length,3);
+    const lineH=11;
+    const startY=cy-(maxLines-1)*lineH/2;
+    lines.slice(0,maxLines).forEach((ln,li)=>{
+      svg+=`<text x="6" y="${startY+li*lineH}" fill="#1A1D2E" font-size="10" font-family="Noto Sans JP,sans-serif" font-weight="${li===0?'500':'400'}">${esc(ln)}</text>`;
+    });
 
     const p=task.deadline.split('/');
     const end=new Date(+p[0],+p[1]-1,+p[2]);
@@ -949,6 +1170,29 @@ function renderGantt(tasks){
   el.innerHTML=svg;
 }
 
+
+// ── Task inline edit functions ──
+function updateTaskOwner(idx, val){
+  if(!minutesData||!minutesData.tasks)return;
+  const sorted=[...minutesData.tasks].sort((a,b)=>{if(!a.deadline)return 1;if(!b.deadline)return -1;return new Date(a.deadline)-new Date(b.deadline);});
+  if(sorted[idx])sorted[idx].owner=val;
+  // Update original tasks array
+  const origIdx=minutesData.tasks.findIndex(t=>t.item===sorted[idx].item);
+  if(origIdx>=0)minutesData.tasks[origIdx].owner=val;
+}
+function updateTaskDeadline(idx, val){
+  if(!minutesData||!minutesData.tasks)return;
+  const sorted=[...minutesData.tasks].sort((a,b)=>{if(!a.deadline)return 1;if(!b.deadline)return -1;return new Date(a.deadline)-new Date(b.deadline);});
+  if(!sorted[idx])return;
+  const formatted=val.replace(/-/g,'/');
+  const origIdx=minutesData.tasks.findIndex(t=>t.item===sorted[idx].item);
+  if(origIdx>=0){minutesData.tasks[origIdx].deadline=formatted;}
+  // Re-render after short delay
+  setTimeout(()=>{
+    const transcript=window._lastTranscript||'';
+    renderMinutes(transcript);
+  },500);
+}
 // ================================================================
 // PDF EXPORT
 // ================================================================

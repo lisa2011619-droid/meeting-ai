@@ -772,7 +772,7 @@ JSON形式のみで回答（コードブロック不要）:
   try{
     const systemPrompt='あなたは優秀な議事録作成AIです。指定JSONのみで日本語回答。ルール：①タスク名は省略せず完全な文章で記載。②議論は1テーマにつき3〜4行で詳細に記載。③結論・課題・対策は具体的に記載。④重要情報を漏らさず記載。';
     const fullPrompt=systemPrompt+'\n\n'+prompt;
-    const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${API_KEY}`,{
+    const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({

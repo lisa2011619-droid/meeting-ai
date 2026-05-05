@@ -780,6 +780,7 @@ JSON形式のみで回答（コードブロック不要）:
     minutesData=JSON.parse(raw.replace(/```json|```/g,'').trim());
     renderMinutes(transcript);
   }catch(e){
+    console.error('Generation error:', e);
     showError('生成に失敗しました。APIキーとネット接続を確認してください。');
     switchTab('form');
     document.getElementById('minLoading').classList.add('hidden');

@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MeetingAI">
+<meta name="theme-color" content="#F8F9FC">
+<title>MeetingAI 議事録</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Noto+Serif+JP:wght@400;700&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ── PRINT / PDF STYLES ── */
+@media print {
+  .no-print { display: none !important; }
+  .print-only { display: block !important; }
+  body { background: #fff !important; color: #111 !important; }
+  .topbar, .tabs, .pane-record, .pane-form, #pane-record, #pane-form { display: none !important; }
+  #pane-minutes { display: block !important; }
+  .min-card { break-inside: avoid; box-shadow: none !important; border: 1px solid #ddd !important; }
+  .gantt-container { overflow: visible !important; }
+  .gantt-svg { width: 100% !important; max-width: 100% !important; }
+  .pdf-exclude { display: none !important; }
+  .guide { display: none !important; }
+  .copy-btn, .tasks-btn, .pdf-btn { display: none !important; }
+  .mhdr { background: #f8f9fc !important; }
+  h1 { color: #1a1a2e !important; }
+}
+
+:root {
+  --bg: #F8F9FC;
+  --bg2: #FFFFFF;
+  --bg3: #F0F2F7;
+  --border: #E2E6EF;
+  --text: #1A1D2E;
+  --text2: #4A4F6A;
+  --muted: #8A90A8;
+  --accent: #2563EB;
+  --accent-light: #EFF6FF;
+  --green: #059669;
+  --green-light: #ECFDF5;
+  --orange: #D97706;
+  --orange-light: #FFFBEB;
+  --red: #DC2626;
+  --red-light: #FEF2F2;
+  --purple: #7C3AED;
+  --purple-light: #F5F3FF;
+  --pink: #DB2777;
+  --pink-light: #FDF2F8;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow: 0 4px 16px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
+  --shadow-lg: 0 10px 40px rgba(0,0,0,0.12);
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', 'Noto Sans JP', sans-serif;
+  min-height: 100dvh;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ── API SCREEN ── */
+.apiscreen {
+  min-height: 100dvh;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 32px 24px;
+  background: linear-gradient(135deg, #EFF6FF 0%, #F8F9FC 50%, #F5F3FF 100%);
+}
+.apiscreen .logo { font-size: 48px; margin-bottom: 20px; }
+.apiscreen h1 {
+  font-size: 28px; font-weight: 700;
+  color: var(--text); margin-bottom: 8px;
+  font-family: 'DM Sans', sans-serif;
+  letter-spacing: -0.5px;
+}
+.apiscreen p { font-size: 14px; color: var(--text2); text-align: center; line-height: 1.8; margin-bottom: 28px; }
+.api-input {
+  width: 100%; background: var(--bg2);
+  border: 1.5px solid var(--border); border-radius: var(--radius);
+  color: var(--text); padding: 14px 16px; font-size: 14px;
+  font-family: inherit; outline: none; margin-bottom: 8px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-shadow: var(--shadow-sm);
+}
+.api-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+.api-hint { font-size: 12px; color: var(--muted); text-align: center; margin-bottom: 20px; line-height: 1.8; }
+
+/* ── TOPBAR ── */
+.topbar {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: var(--shadow-sm);
+}
+.topbar-logo { display: flex; align-items: center; gap: 10px; }
+.topbar-logo h1 { font-size: 16px; font-weight: 700; color: var(--text); letter-spacing: -0.3px; }
+.topbar-logo span { font-size: 10px; color: var(--muted); font-weight: 400; }
+.topbar-actions { display: flex; align-items: center; gap: 8px; }
+
+/* ── BADGES ── */
+.badge {
+  font-size: 11px; font-weight: 500;
+  border-radius: 20px; padding: 4px 12px;
+  cursor: pointer; border: 1.5px solid;
+  transition: all 0.2s; white-space: nowrap;
+}
+.badge-google { color: var(--accent); border-color: rgba(37,99,235,0.3); background: var(--accent-light); }
+.badge-google.connected { color: var(--green); border-color: rgba(5,150,105,0.3); background: var(--green-light); }
+.badge-key { color: var(--muted); border-color: var(--border); background: var(--bg3); }
+
+/* ── TABS ── */
+.tabs {
+  display: flex; background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto; scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tab {
+  padding: 12px 20px; background: transparent;
+  border: none; border-bottom: 2px solid transparent;
+  color: var(--muted); cursor: pointer; font-size: 13px;
+  font-family: inherit; font-weight: 500;
+  white-space: nowrap; transition: all 0.2s;
+}
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab:hover:not(.active) { color: var(--text2); }
+
+/* ── MAIN ── */
+.main { padding: 20px; max-width: 800px; margin: 0 auto; padding-bottom: 48px; }
+
+/* ── CARDS ── */
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px; margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+}
+.min-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px; margin-bottom: 14px;
+  box-shadow: var(--shadow-sm);
+  border-left: 4px solid;
+}
+
+/* ── RECORD ── */
+.rec-wrap { text-align: center; padding: 20px 0; }
+.rec-btn {
+  width: 96px; height: 96px; border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--bg3);
+  font-size: 38px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  margin-bottom: 14px; transition: all 0.3s;
+  box-shadow: var(--shadow-sm);
+}
+.rec-btn:hover { transform: scale(1.05); box-shadow: var(--shadow); }
+.rec-btn.recording {
+  background: var(--red-light);
+  border-color: var(--red);
+  box-shadow: 0 0 0 6px rgba(220,38,38,0.1);
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse { 0%,100%{box-shadow:0 0 0 6px rgba(220,38,38,0.1)} 50%{box-shadow:0 0 0 12px rgba(220,38,38,0.05)} }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+@keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(400%)} }
+.rec-status { font-size: 13px; color: var(--muted); font-weight: 500; }
+.rec-status.live { color: var(--red); animation: blink 1s infinite; }
+
+/* ── BUTTONS ── */
+.btn {
+  width: 100%; padding: 13px 20px; border: none;
+  border-radius: var(--radius-sm); font-family: inherit;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  margin-top: 10px; transition: all 0.2s; letter-spacing: 0.2px;
+}
+.btn:active { transform: scale(0.98); }
+.btn-primary { background: var(--accent); color: #fff; box-shadow: 0 2px 8px rgba(37,99,235,0.3); }
+.btn-primary:hover { background: #1d4ed8; box-shadow: 0 4px 12px rgba(37,99,235,0.4); }
+.btn-stop { background: var(--red-light); border: 1.5px solid var(--red); color: var(--red); }
+.btn-outline { background: transparent; border: 1.5px solid var(--accent); color: var(--accent); }
+.btn-google { background: var(--accent); color: #fff; }
+.btn-tasks { background: var(--green-light); border: 1.5px solid var(--green); color: var(--green); font-weight: 600; }
+.btn-pdf { background: var(--purple-light); border: 1.5px solid var(--purple); color: var(--purple); font-weight: 600; }
+.btn-copy { background: var(--bg3); border: 1.5px solid var(--border); color: var(--text2); font-weight: 600; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── INPUTS ── */
+.field { margin-bottom: 16px; }
+.field label { display: block; font-size: 12px; color: var(--text2); margin-bottom: 6px; font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase; }
+input, textarea {
+  width: 100%; background: var(--bg2);
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text); padding: 11px 14px; font-size: 14px;
+  font-family: inherit; outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+input:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
+textarea { resize: vertical; line-height: 1.7; }
+audio { width: 100%; margin-top: 10px; }
+
+/* ── TRANSCRIPT BOX ── */
+.tbox {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 14px;
+  font-size: 13px; color: var(--text2); max-height: 180px;
+  overflow-y: auto; white-space: pre-wrap; word-break: break-all;
+  margin-top: 10px; line-height: 1.8;
+}
+
+/* ── ALERTS ── */
+.err { background: var(--red-light); border: 1px solid rgba(220,38,38,0.2); border-radius: var(--radius-sm); padding: 12px 16px; color: var(--red); font-size: 13px; margin-bottom: 16px; }
+.success-msg { background: var(--green-light); border: 1px solid rgba(5,150,105,0.2); border-radius: var(--radius-sm); padding: 12px 16px; color: var(--green); font-size: 13px; margin-top: 10px; line-height: 1.8; }
+.info-msg { background: var(--accent-light); border: 1px solid rgba(37,99,235,0.2); border-radius: var(--radius-sm); padding: 12px 16px; color: var(--accent); font-size: 13px; margin-top: 10px; line-height: 1.8; }
+
+/* ── MINUTES HEADER ── */
+.mhdr {
+  background: linear-gradient(135deg, #EFF6FF, #F5F3FF);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 24px; margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+}
+.mtitle {
+  font-family: 'Noto Serif JP', serif;
+  font-size: 20px; font-weight: 700;
+  color: var(--text); margin-bottom: 14px; letter-spacing: -0.3px;
+}
+.mrow { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 13px; }
+.mlabel { color: var(--muted); min-width: 55px; font-weight: 500; }
+.mval { color: var(--text); flex: 1; }
+.edit-btn { background: var(--bg3); border: 1px solid var(--border); color: var(--text2); border-radius: 6px; padding: 3px 10px; font-size: 11px; cursor: pointer; font-family: inherit; font-weight: 500; }
+.save-btn { background: var(--accent); border: none; color: #fff; border-radius: 6px; padding: 3px 12px; font-size: 11px; cursor: pointer; font-family: inherit; font-weight: 600; }
+.edit-input { flex: 1; background: var(--bg2); border: 1.5px solid var(--accent); border-radius: 6px; color: var(--text); padding: 3px 10px; font-size: 13px; font-family: inherit; outline: none; }
+
+/* ── SECTION TITLE ── */
+.sec-title {
+  font-size: 12px; font-weight: 700; letter-spacing: 0.8px;
+  text-transform: uppercase; margin-bottom: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.sec-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* ── TASK TABLE ── */
+.task-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.task-table th {
+  padding: 10px 14px; color: var(--text2); font-weight: 600;
+  border-bottom: 2px solid var(--border); text-align: left;
+  background: var(--bg3); font-size: 11px; letter-spacing: 0.5px;
+  text-transform: uppercase; white-space: nowrap;
+}
+.task-table td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: top; word-break: break-word; line-height: 1.6; }
+.task-table tr:last-child td { border-bottom: none; }
+.task-table tr:hover td { background: var(--bg3); }
+
+/* ── GANTT ── */
+.gantt-container {
+  width: 100%; overflow-x: auto;
+  border-radius: var(--radius-sm);
+  background: var(--bg2);
+}
+.gantt-svg { display: block; }
+
+/* ── ISSUE CARD ── */
+.issue-item {
+  background: var(--orange-light); border: 1px solid rgba(217,119,6,0.2);
+  border-radius: var(--radius-sm); padding: 14px; margin-bottom: 10px;
+}
+.issue-label { font-size: 12px; font-weight: 700; color: var(--orange); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
+.issue-text { font-size: 13px; color: var(--text); margin-bottom: 8px; }
+.measure-label { font-size: 11px; font-weight: 600; color: var(--green); text-transform: uppercase; letter-spacing: 0.5px; }
+.measure-text { font-size: 13px; color: var(--text2); }
+
+/* ── IMPROVEMENT CARD ── */
+.imp-item {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 14px; margin-bottom: 10px;
+  border-left: 4px solid var(--accent);
+}
+.imp-rank { font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+.imp-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.imp-action { font-size: 13px; color: var(--text2); line-height: 1.7; }
+
+/* ── LOADING BAR ── */
+.loading-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; position: relative; margin-top: 12px; }
+.loading-bar::after { content: ''; position: absolute; width: 30%; height: 100%; background: linear-gradient(90deg, transparent, var(--accent), transparent); animation: shimmer 1.5s infinite; }
+
+/* ── GUIDE ── */
+.guide {
+  background: var(--green-light); border: 1px solid rgba(5,150,105,0.2);
+  border-radius: var(--radius); padding: 18px; margin-top: 16px;
+  font-size: 13px; line-height: 2; color: var(--text2);
+}
+.guide-title { color: var(--green); font-weight: 700; margin-bottom: 10px; font-size: 14px; }
+
+/* ── OAUTH OVERLAY ── */
+.oauth-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  z-index: 999; display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.oauth-card {
+  background: var(--bg2); border-radius: var(--radius);
+  padding: 28px; max-width: 400px; width: 100%;
+  text-align: center; box-shadow: var(--shadow-lg);
+}
+.oauth-card h3 { font-size: 18px; font-weight: 700; color: var(--text); margin: 12px 0 8px; }
+.oauth-card p { font-size: 13px; color: var(--text2); line-height: 1.8; margin-bottom: 20px; }
+
+/* ── MISC ── */
+.hidden { display: none !important; }
+.empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+.empty .icon { font-size: 48px; margin-bottom: 14px; }
+.tag {
+  display: inline-block; font-size: 11px; font-weight: 600;
+  padding: 3px 10px; border-radius: 20px;
+  background: var(--accent-light); color: var(--accent);
+  letter-spacing: 0.3px;
+}
+.divider { height: 1px; background: var(--border); margin: 20px 0; }
+</style>
+</head>
+<body>
+
+<!-- API KEY SCREEN -->
+<div id="apiScreen" class="apiscreen">
+  <div class="logo">🎙</div>
+  <h1>MeetingAI</h1>
+  <p>自動議事録システムへようこそ<br>AnthropicのAPIキーを入力してください</p>
+  <input class="api-input" type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." autocomplete="off" spellcheck="false">
+  <div class="api-hint">🔒 キーはこのデバイスの中にだけ保存されます</div>
+  <button class="btn btn-primary" onclick="saveApiKey()" style="margin-top:0;">はじめる →</button>
+  <div id="apiError" class="err hidden" style="margin-top:12px;width:100%;"></div>
+</div>
+
+<!-- MAIN APP -->
+<div id="mainApp" class="hidden">
+
+  <!-- TOPBAR -->
+  <div class="topbar no-print">
+    <div class="topbar-logo">
+      <span style="font-size:20px;">🎙</span>
+      <div>
+        <h1>MeetingAI</h1>
+        <span id="topDt"></span>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <div class="badge badge-google" id="googleBadge" onclick="connectGoogle()">🔗 Google連携</div>
+      <div class="badge badge-key" onclick="resetApiKey()">🔑</div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs no-print">
+    <button class="tab active" onclick="switchTab('record')" id="tab-record">🎙 録音</button>
+    <button class="tab" onclick="switchTab('form')" id="tab-form">📝 情報入力</button>
+    <button class="tab" onclick="switchTab('minutes')" id="tab-minutes">📄 議事録</button>
+  </div>
+
+  <div class="main">
+    <div class="err hidden" id="errorBox"></div>
+
+    <!-- RECORD TAB -->
+    <div id="pane-record">
+      <div class="card rec-wrap">
+        <div class="rec-btn" id="recBtn" onclick="toggleRecord()">🎙</div>
+        <div class="rec-status" id="recStatus">タップして録音開始</div>
+        <div id="stopWrap" class="hidden" style="margin-top:16px;">
+          <button class="btn btn-stop" onclick="stopRec()">⏹ 録音を停止する</button>
+        </div>
+      </div>
+      <div class="card hidden" id="audioWrap">
+        <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:6px;">🎵 録音データ</div>
+        <audio id="audioPlayer" controls></audio>
+        <div id="audioSaveStatus" class="hidden" style="margin-top:10px;"></div>
+      </div>
+      <div class="card hidden" id="liveWrap">
+        <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:6px;">📝 リアルタイム文字起こし</div>
+        <div class="tbox" id="liveText"></div>
+      </div>
+      <div id="nextBtnWrap" class="hidden">
+        <button class="btn btn-primary" onclick="switchTab('form')">次へ：情報入力 →</button>
+      </div>
+    </div>
+
+    <!-- FORM TAB -->
+    <div id="pane-form" class="hidden">
+      <p style="font-size:13px;color:var(--text2);margin-bottom:20px;">会議情報を入力してAI議事録を生成します</p>
+      <div class="field">
+        <label>🎯 目的・ゴール設定（Goal） <span style="color:var(--red)">*</span></label>
+        <textarea id="goal" rows="3" placeholder="例：Q2の販売戦略を決定し、担当者とスケジュールを確定する"></textarea>
+      </div>
+      <div class="field">
+        <label>👥 参加者</label>
+        <input type="text" id="participants" placeholder="例：山田太郎、鈴木花子、佐藤一郎">
+      </div>
+      <div class="field">
+        <label>📝 文字起こし <span style="color:var(--red)">*</span></label>
+        <textarea id="transcriptInput" rows="8" placeholder="録音から自動で文字起こしされます。手動入力・修正も可能です。"></textarea>
+      </div>
+      <button class="btn btn-primary" id="generateBtn" onclick="generateMinutes()">✨ AI議事録を生成</button>
+      <div class="hidden" id="genLoading" style="text-align:center;padding:20px;color:var(--accent);font-size:13px;font-weight:600;">
+        ⚙️ AIが議事録を生成中...<div class="loading-bar"></div>
+      </div>
+    </div>
+
+    <!-- MINUTES TAB -->
+    <div id="pane-minutes" class="hidden">
+      <div class="hidden" id="minLoading" style="text-align:center;padding:50px;color:var(--accent);font-size:14px;font-weight:600;">
+        ⚙️ AI議事録を生成中...<div class="loading-bar" style="margin-top:16px;"></div>
+      </div>
+      <div class="empty hidden" id="minEmpty">
+        <div class="icon">📄</div>
+        <p style="color:var(--text2);margin-bottom:16px;">議事録はまだ生成されていません</p>
+        <button class="btn btn-outline" onclick="switchTab('record')" style="width:auto;padding:10px 28px;">録音を開始する</button>
+      </div>
+
+      <div id="minContent" class="hidden">
+
+        <!-- HEADER -->
+        <div class="mhdr">
+          <div class="mtitle" id="minTitle">📄 議事録</div>
+          <div class="mrow"><span class="mlabel">日時</span><span class="mval" id="minDatetime"></span></div>
+          <div class="mrow" id="participantsRow">
+            <span class="mlabel">参加者</span>
+            <span class="mval" id="minParticipants"></span>
+            <button class="edit-btn" onclick="editParticipants()">✎ 編集</button>
+          </div>
+          <div class="mrow hidden" id="participantsEditRow">
+            <span class="mlabel">参加者</span>
+            <input class="edit-input" id="participantsEdit" type="text">
+            <button class="save-btn" onclick="saveParticipants()">保存</button>
+          </div>
+        </div>
+
+        <!-- ACTION BUTTONS -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;" class="no-print">
+          <button class="btn btn-pdf" onclick="exportPDF()" style="margin-top:0;">📄 PDFで保存・共有</button>
+          <button class="btn btn-copy" onclick="copyMinutes()" id="copyBtn" style="margin-top:0;">📋 テキストコピー</button>
+        </div>
+        <div style="margin-bottom:16px;" class="no-print">
+          <button class="btn btn-tasks" onclick="addToGoogleTasks()" id="tasksBtn" style="margin-top:0;">✅ Google Tasksのマイタスクに自動登録</button>
+          <div id="tasksMsg" class="hidden"></div>
+        </div>
+
+        <!-- CONCLUSION -->
+        <div class="min-card" style="border-left-color:var(--green);">
+          <div class="sec-title" style="color:var(--green);">✅ 結論</div>
+          <div id="minConclusion" style="font-size:14px;line-height:1.9;color:var(--text);white-space:pre-wrap;"></div>
+        </div>
+
+        <!-- ISSUES -->
+        <div class="min-card" style="border-left-color:var(--orange);">
+          <div class="sec-title" style="color:var(--orange);">⚠️ 残された課題と対策</div>
+          <div id="minIssues"></div>
+        </div>
+
+        <!-- DISCUSSION -->
+        <div class="min-card" style="border-left-color:var(--purple);">
+          <div class="sec-title" style="color:var(--purple);">💬 議論されたこと</div>
+          <ul id="minDiscussion" style="padding-left:18px;"></ul>
+        </div>
+
+        <!-- TASKS -->
+        <div class="min-card" style="border-left-color:var(--accent);">
+          <div class="sec-title" style="color:var(--accent);">📋 タスク一覧</div>
+          <div style="overflow-x:auto;border-radius:var(--radius-sm);border:1px solid var(--border);">
+            <table class="task-table">
+              <thead><tr>
+                <th style="min-width:140px;">タスク項目</th>
+                <th style="min-width:180px;">内容</th>
+                <th style="min-width:90px;">担当者</th>
+                <th style="min-width:140px;">対応案</th>
+                <th style="min-width:100px;">期限</th>
+              </tr></thead>
+              <tbody id="minTasks"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- GANTT -->
+        <div class="min-card" style="border-left-color:var(--pink);">
+          <div class="sec-title" style="color:var(--pink);">📅 スケジュール（期限順）</div>
+          <div class="gantt-container" id="minGantt"></div>
+        </div>
+
+        <!-- IMPROVEMENTS -->
+        <div class="min-card" style="border-left-color:var(--accent);">
+          <div class="sec-title" style="color:var(--accent);">🚀 TOP5 改善案 & アクションプラン</div>
+          <div id="minImprovements"></div>
+        </div>
+
+        <!-- DRIVE SAVE STATUS -->
+        <div id="driveMsg" class="hidden"></div>
+
+        <!-- GUIDE -->
+        <div class="guide no-print">
+          <div class="guide-title">📌 自動連携状況</div>
+          ✅ 録音データ → Google Drive「音声データ」フォルダに自動保存<br>
+          ✅ タスク → Google Tasksのマイタスクに自動登録<br>
+          ✅ 議事録 → 「PDFで保存・共有」ボタンからPDF出力<br>
+          📅 Google Calendar → タスク期限を手動でイベント登録
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- GOOGLE OAUTH OVERLAY -->
+<div id="oauthOverlay" class="oauth-overlay hidden">
+  <div class="oauth-card">
+    <div style="font-size:36px;">🔗</div>
+    <h3>Google連携</h3>
+    <p>Google Tasks・Drive連携のため<br>Googleアカウントでログインしてください<br>初回のみ必要です</p>
+    <button class="btn btn-google" onclick="startGoogleLogin()" style="margin-top:0;">🔑 Googleでログイン</button>
+    <div style="margin-top:12px;">
+      <button onclick="document.getElementById('oauthOverlay').classList.add('hidden')" style="background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:12px;font-family:inherit;">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ================================================================
+// CREDENTIALS
+// ================================================================
+const GOOGLE_CLIENT_ID='794259594286-sa7d2dugumi12de5c00nv884hliiotne.apps.googleusercontent.com';
+const GOOGLE_CLIENT_SECRET='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';
+
+// ================================================================
+// STATE
+// ================================================================
+let API_KEY='';
+let GOOGLE_TOKEN='';
+let mediaRecorder=null,audioChunks=[],isRecording=false;
+let currentAudioBlob=null;
+let recognition=null,liveTranscript='';
+let minutesData=null,currentParticipants='',currentDatetime='';
+
+// ================================================================
+// API KEY
+// ================================================================
+function saveApiKey(){
+  const k=document.getElementById('apiKeyInput').value.trim();
+  if(!k.startsWith('sk-ant-')){
+    document.getElementById('apiError').textContent='⚠️ APIキーは sk-ant- から始まる文字列です';
+    document.getElementById('apiError').classList.remove('hidden');
+    return;
+  }
+  API_KEY=k;
+  try{localStorage.setItem('mAiK',btoa(k));}catch(e){}
+  showApp();
+}
+function resetApiKey(){
+  if(!confirm('APIキーをリセットしますか？'))return;
+  try{localStorage.removeItem('mAiK');}catch(e){}
+  API_KEY='';
+  document.getElementById('mainApp').classList.add('hidden');
+  document.getElementById('apiScreen').classList.remove('hidden');
+}
+function showApp(){
+  document.getElementById('apiScreen').classList.add('hidden');
+  document.getElementById('mainApp').classList.remove('hidden');
+  const n=new Date();
+  currentDatetime=`${n.getFullYear()}/${n.getMonth()+1}/${n.getDate()} ${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`;
+  document.getElementById('topDt').textContent=currentDatetime;
+  try{const gt=localStorage.getItem('mGT');if(gt){GOOGLE_TOKEN=atob(gt);updateGoogleBadge();}}catch(e){}
+  switchTab('record');
+}
+window.addEventListener('DOMContentLoaded',()=>{
+  try{const s=localStorage.getItem('mAiK');if(s){API_KEY=atob(s);showApp();}}catch(e){}
+  if(window.location.search.includes('code=')){handleOAuthCallback();}
+});
+
+// ================================================================
+// GOOGLE AUTH
+// ================================================================
+function connectGoogle(){ document.getElementById('oauthOverlay').classList.remove('hidden'); }
+function startGoogleLogin(){
+  const REDIRECT_URI=window.location.href.split('?')[0];
+  const scope='https://www.googleapis.com/auth/tasks https://www.googleapis.com/auth/drive';
+  const url=`https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=${encodeURIComponent(scope)}&access_type=offline&prompt=consent`;
+  window.location.href=url;
+}
+async function handleOAuthCallback(){
+  const params=new URLSearchParams(window.location.search);
+  const code=params.get('code');
+  if(!code)return;
+  try{
+    const res=await fetch('https://oauth2.googleapis.com/token',{
+      method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:new URLSearchParams({code,client_id:GOOGLE_CLIENT_ID,client_secret:GOOGLE_CLIENT_SECRET,redirect_uri:window.location.href.split('?')[0],grant_type:'authorization_code'})
+    });
+    const data=await res.json();
+    if(data.access_token){GOOGLE_TOKEN=data.access_token;try{localStorage.setItem('mGT',btoa(data.access_token));}catch(e){}}
+    if(data.refresh_token){try{localStorage.setItem('mGRT',btoa(data.refresh_token));}catch(e){}}
+    window.history.replaceState({},'',window.location.pathname);
+    updateGoogleBadge();
+    alert('✅ Google連携が完了しました！');
+  }catch(e){alert('Google連携に失敗しました。');}
+}
+async function ensureToken(){
+  if(GOOGLE_TOKEN)return true;
+  try{
+    const rt=localStorage.getItem('mGRT');
+    if(rt){
+      const res=await fetch('https://oauth2.googleapis.com/token',{
+        method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:new URLSearchParams({refresh_token:atob(rt),client_id:GOOGLE_CLIENT_ID,client_secret:GOOGLE_CLIENT_SECRET,grant_type:'refresh_token'})
+      });
+      const d=await res.json();
+      if(d.access_token){GOOGLE_TOKEN=d.access_token;try{localStorage.setItem('mGT',btoa(d.access_token));}catch(e){}return true;}
+    }
+  }catch(e){}
+  return false;
+}
+function updateGoogleBadge(){
+  const b=document.getElementById('googleBadge');
+  const hasRT=!!localStorage.getItem('mGRT');
+  if(hasRT||GOOGLE_TOKEN){b.textContent='✅ Google連携済';b.classList.add('connected');}
+}
+
+// ================================================================
+// TABS
+// ================================================================
+function switchTab(id){
+  ['record','form','minutes'].forEach(t=>{
+    document.getElementById('pane-'+t).classList.toggle('hidden',t!==id);
+    document.getElementById('tab-'+t).classList.toggle('active',t===id);
+  });
+  if(id==='minutes'&&!minutesData){
+    document.getElementById('minEmpty').classList.remove('hidden');
+    document.getElementById('minContent').classList.add('hidden');
+    document.getElementById('minLoading').classList.add('hidden');
+  }
+}
+
+// ================================================================
+// RECORDING
+// ================================================================
+function toggleRecord(){isRecording?stopRec():startRec();}
+async function startRec(){
+  try{
+    showError('');
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    audioChunks=[];currentAudioBlob=null;
+    mediaRecorder=new MediaRecorder(stream);
+    mediaRecorder.ondataavailable=e=>audioChunks.push(e.data);
+    mediaRecorder.onstop=async()=>{
+      currentAudioBlob=new Blob(audioChunks,{type:'audio/webm'});
+      document.getElementById('audioPlayer').src=URL.createObjectURL(currentAudioBlob);
+      document.getElementById('audioWrap').classList.remove('hidden');
+      document.getElementById('nextBtnWrap').classList.remove('hidden');
+      await autoSaveAudio(currentAudioBlob);
+    };
+    mediaRecorder.start();isRecording=true;
+    document.getElementById('recBtn').classList.add('recording');
+    document.getElementById('recBtn').textContent='⏹';
+    document.getElementById('recStatus').textContent='● 録音中...';
+    document.getElementById('recStatus').classList.add('live');
+    document.getElementById('stopWrap').classList.remove('hidden');
+    startSR();
+  }catch(e){showError('マイクへのアクセスが拒否されました。ブラウザの設定を確認してください。');}
+}
+function stopRec(){
+  if(mediaRecorder&&isRecording){mediaRecorder.stop();mediaRecorder.stream.getTracks().forEach(t=>t.stop());}
+  stopSR();isRecording=false;
+  document.getElementById('recBtn').classList.remove('recording');
+  document.getElementById('recBtn').textContent='🎙';
+  document.getElementById('recStatus').textContent='録音完了！次のステップへ進んでください';
+  document.getElementById('recStatus').classList.remove('live');
+  document.getElementById('stopWrap').classList.add('hidden');
+  document.getElementById('transcriptInput').value=liveTranscript;
+}
+function startSR(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR)return;
+  recognition=new SR();recognition.lang='ja-JP';recognition.continuous=true;recognition.interimResults=true;
+  liveTranscript='';
+  recognition.onresult=e=>{
+    let interim='',final=liveTranscript;
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal)final+=e.results[i][0].transcript+'。';
+      else interim+=e.results[i][0].transcript;
+    }
+    liveTranscript=final;
+    document.getElementById('liveText').textContent=final+(interim?`[${interim}]`:'');
+    document.getElementById('liveWrap').classList.remove('hidden');
+  };
+  recognition.onerror=()=>{};recognition.onend=()=>{if(isRecording)recognition.start();};
+  recognition.start();
+}
+function stopSR(){if(recognition){recognition.onend=null;recognition.stop();recognition=null;}}
+
+// ================================================================
+// AUTO SAVE AUDIO
+// ================================================================
+async function autoSaveAudio(blob){
+  const el=document.getElementById('audioSaveStatus');
+  el.className='info-msg';el.classList.remove('hidden');
+  el.textContent='🔄 音声データをGoogle Driveに保存中...';
+  const ok=await ensureToken();
+  if(!ok){el.textContent='⚠️ Google連携後に音声が自動保存されます';el.className='info-msg';return;}
+  try{
+    const now=new Date();
+    const fname=`録音_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}.webm`;
+    const fid=await findOrCreateFolder('音声データ');
+    if(!fid)throw new Error();
+    const form=new FormData();
+    form.append('metadata',new Blob([JSON.stringify({name:fname,parents:[fid]})],{type:'application/json'}));
+    form.append('file',blob);
+    const res=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',{method:'POST',headers:{Authorization:`Bearer ${GOOGLE_TOKEN}`},body:form});
+    if(res.ok){el.textContent='✅ 音声データをGoogle Drive「音声データ」フォルダに保存しました';el.className='success-msg';}
+    else throw new Error();
+  }catch(e){el.textContent='⚠️ Drive保存失敗。Google連携を確認してください。';el.className='err';}
+}
+
+async function findOrCreateFolder(name){
+  try{
+    const q=`name='${name}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+    const res=await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)`,{headers:{Authorization:`Bearer ${GOOGLE_TOKEN}`}});
+    const d=await res.json();
+    if(d.files&&d.files.length>0)return d.files[0].id;
+    const cr=await fetch('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{Authorization:`Bearer ${GOOGLE_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({name,mimeType:'application/vnd.google-apps.folder'})});
+    const cd=await cr.json();return cd.id||null;
+  }catch(e){return null;}
+}
+
+// ================================================================
+// AI GENERATION
+// ================================================================
+async function generateMinutes(){
+  const transcript=document.getElementById('transcriptInput').value.trim();
+  if(!transcript){showError('文字起こしが空です。');return;}
+  currentParticipants=document.getElementById('participants').value.trim();
+  const goal=document.getElementById('goal').value.trim();
+  document.getElementById('generateBtn').disabled=true;
+  document.getElementById('genLoading').classList.remove('hidden');
+  showError('');
+  switchTab('minutes');
+  document.getElementById('minEmpty').classList.add('hidden');
+  document.getElementById('minContent').classList.add('hidden');
+  document.getElementById('minLoading').classList.remove('hidden');
+
+  const prompt=`以下の文字起こしから議事録を作成してください。
+【日時】${currentDatetime}【目的】${goal||'未設定'}【参加者】${currentParticipants||'未設定'}
+【文字起こし】\n${transcript}
+
+JSON形式のみで回答（コードブロック不要）:
+{"title":"タイトル","conclusion":"結論（改行区切り箇条書き）","issues":[{"issue":"課題","measure":"対策"}],"discussion":["議論ポイント"],"tasks":[{"item":"タスク名（完全な文章で）","detail":"詳細内容","owner":"担当者","plan":"対応案","deadline":"YYYY/MM/DD","depends_on":null}],"improvements":[{"rank":1,"title":"改善タイトル","action":"具体的アクションプラン"}]}`;
+
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':API_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:4000,system:'議事録作成AIです。指定JSONのみで日本語回答。タスク名は省略せず完全な文章で記載。',messages:[{role:'user',content:prompt}]})
+    });
+    const data=await res.json();
+    const raw=(data.content||[]).map(b=>b.text||'').join('');
+    minutesData=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    renderMinutes(transcript);
+  }catch(e){
+    showError('生成に失敗しました。APIキーとネット接続を確認してください。');
+    switchTab('form');
+    document.getElementById('minLoading').classList.add('hidden');
+  }
+  document.getElementById('generateBtn').disabled=false;
+  document.getElementById('genLoading').classList.add('hidden');
+}
+
+// ================================================================
+// RENDER MINUTES
+// ================================================================
+function renderMinutes(transcript){
+  const m=minutesData;
+  document.getElementById('minLoading').classList.add('hidden');
+  document.getElementById('minContent').classList.remove('hidden');
+  document.getElementById('minTitle').textContent='📄 '+(m.title||'議事録');
+  document.getElementById('minDatetime').textContent=currentDatetime;
+  document.getElementById('minParticipants').textContent=currentParticipants||'（未設定）';
+  document.getElementById('minConclusion').textContent=m.conclusion||'';
+
+  // Issues
+  const iss=document.getElementById('minIssues');iss.innerHTML='';
+  (m.issues||[]).forEach(i=>{
+    iss.innerHTML+=`<div class="issue-item">
+      <div class="issue-label">課題</div>
+      <div class="issue-text">${esc(i.issue)}</div>
+      <div class="measure-label" style="margin-top:8px;">対策</div>
+      <div class="measure-text">${esc(i.measure)}</div>
+    </div>`;
+  });
+
+  // Discussion
+  const dis=document.getElementById('minDiscussion');dis.innerHTML='';
+  (m.discussion||[]).forEach(d=>{
+    const li=document.createElement('li');
+    li.style.cssText='color:var(--text);font-size:13px;line-height:1.9;margin-bottom:4px;';
+    li.textContent=d;dis.appendChild(li);
+  });
+
+  // Tasks - sort by deadline
+  const sortedTasks=[...(m.tasks||[])].sort((a,b)=>{
+    if(!a.deadline)return 1;if(!b.deadline)return -1;
+    return new Date(a.deadline)-new Date(b.deadline);
+  });
+
+  const tk=document.getElementById('minTasks');tk.innerHTML='';
+  sortedTasks.forEach((t,i)=>{
+    const isOver=t.deadline&&new Date(t.deadline)<new Date();
+    tk.innerHTML+=`<tr>
+      <td style="font-weight:600;color:var(--text);">${esc(t.item)}</td>
+      <td style="color:var(--text2);">${esc(t.detail)}</td>
+      <td><span class="tag">${esc(t.owner)}</span></td>
+      <td style="color:var(--text2);">${esc(t.plan)}</td>
+      <td style="font-weight:600;color:${isOver?'var(--red)':'var(--accent)'};white-space:nowrap;">${esc(t.deadline)}</td>
+    </tr>`;
+  });
+
+  // Gantt - sorted by deadline
+  renderGantt(sortedTasks);
+
+  // Improvements
+  const imp=document.getElementById('minImprovements');imp.innerHTML='';
+  (m.improvements||[]).forEach(i=>{
+    imp.innerHTML+=`<div class="imp-item">
+      <div class="imp-rank">改善案 #${i.rank}</div>
+      <div class="imp-title">${esc(i.title)}</div>
+      <div class="imp-action">▶ ${esc(i.action)}</div>
+    </div>`;
+  });
+
+  document.getElementById('tasksMsg').classList.add('hidden');
+  document.getElementById('driveMsg').classList.add('hidden');
+  window._lastTranscript=transcript;
+}
+
+// ================================================================
+// GANTT - light theme, fit width, sorted, dependencies
+// ================================================================
+function renderGantt(tasks){
+  const el=document.getElementById('minGantt');
+  const today=new Date();
+  const validTasks=tasks.filter(t=>t.deadline&&t.deadline.split('/').length===3);
+  if(!validTasks.length){el.innerHTML='<p style="color:var(--muted);font-size:13px;padding:16px;">期限が設定されたタスクがありません</p>';return;}
+
+  const dates=validTasks.map(t=>{const p=t.deadline.split('/');return new Date(+p[0],+p[1]-1,+p[2]);});
+  const minD=new Date(Math.min(...dates));minD.setDate(minD.getDate()-1);
+  const maxD=new Date(Math.max(...dates));maxD.setDate(maxD.getDate()+2);
+  const totalMs=maxD-minD;
+  const totalDays=Math.ceil(totalMs/86400000);
+
+  // Fit to container width
+  const containerW=el.clientWidth||700;
+  const labelW=160;
+  const barAreaW=containerW-labelW-4;
+  const rowH=34;
+  const headerH=28;
+  const legendH=30;
+  const H=headerH+(validTasks.length*rowH)+legendH+10;
+
+  let svg=`<svg class="gantt-svg" width="${containerW}" height="${H}" style="display:block;width:100%;" viewBox="0 0 ${containerW} ${H}" preserveAspectRatio="xMidYMid meet">`;
+  svg+=`<rect width="${containerW}" height="${H}" fill="#FAFBFD" rx="8"/>`;
+
+  // Grid
+  for(let i=0;i<=totalDays;i++){
+    const d=new Date(minD);d.setDate(d.getDate()+i);
+    const x=labelW+(i/totalDays)*barAreaW;
+    const isWeekend=d.getDay()===0||d.getDay()===6;
+    if(isWeekend)svg+=`<rect x="${x}" y="${headerH}" width="${barAreaW/totalDays}" height="${H-headerH-legendH}" fill="rgba(0,0,0,0.02)"/>`;
+    if(i%3===0||totalDays<=10){
+      svg+=`<line x1="${x}" y1="${headerH}" x2="${x}" y2="${H-legendH}" stroke="#E2E6EF" stroke-width="1"/>`;
+      svg+=`<text x="${x+2}" y="18" fill="#8A90A8" font-size="9" font-family="DM Sans,sans-serif">${d.getMonth()+1}/${d.getDate()}</text>`;
+    }
+  }
+
+  // Today
+  const todayOff=((today-minD)/totalMs);
+  if(todayOff>=0&&todayOff<=1){
+    const tx=labelW+todayOff*barAreaW;
+    svg+=`<rect x="${tx-0.5}" y="${headerH}" width="2" height="${H-headerH-legendH}" fill="#2563EB" opacity="0.5"/>`;
+    svg+=`<text x="${tx+3}" y="${headerH+10}" fill="#2563EB" font-size="9" font-weight="700" font-family="DM Sans,sans-serif">今日</text>`;
+  }
+
+  // Rows
+  const positions=[];
+  validTasks.forEach((task,i)=>{
+    const y=headerH+(i*rowH);
+    const cy=y+rowH/2;
+    const isEven=i%2===0;
+    if(isEven)svg+=`<rect x="0" y="${y}" width="${containerW}" height="${rowH}" fill="rgba(0,0,0,0.015)"/>`;
+
+    // Label - full width
+    const label=task.item||'';
+    const displayLabel=label.length>18?label.substring(0,18)+'…':label;
+    svg+=`<text x="8" y="${cy+4}" fill="#1A1D2E" font-size="11" font-family="Noto Sans JP,sans-serif" font-weight="500">${esc(displayLabel)}</text>`;
+
+    const p=task.deadline.split('/');
+    const end=new Date(+p[0],+p[1]-1,+p[2]);
+    const startOff=Math.max(((today-minD)/totalMs),0);
+    const endOff=Math.min(((end-minD)/totalMs),1);
+    const startX=labelW+startOff*barAreaW;
+    const endX=labelW+Math.max(endOff*barAreaW,startOff*barAreaW+4);
+    const barW=Math.max(endX-startX,6);
+    const over=end<today;
+
+    // Track
+    svg+=`<rect x="${labelW}" y="${cy-7}" width="${barAreaW}" height="14" fill="#EFF2F8" rx="4"/>`;
+    // Bar
+    const barFill=over?'#DC2626':'#2563EB';
+    const barFill2=over?'#EF4444':'#3B82F6';
+    svg+=`<defs><linearGradient id="bg${i}" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="${barFill}"/><stop offset="100%" stop-color="${barFill2}" stop-opacity="0.8"/></linearGradient></defs>`;
+    svg+=`<rect x="${startX}" y="${cy-7}" width="${barW}" height="14" fill="url(#bg${i})" rx="4" opacity="${over?'1':'0.85'}"/>`;
+    // Date
+    svg+=`<text x="${endX+3}" y="${cy+4}" fill="${over?'#DC2626':'#1A1D2E'}" font-size="9" font-weight="600" font-family="DM Sans,sans-serif">${p[1]}/${p[2]}</text>`;
+
+    positions.push({startX,endX,cy});
+  });
+
+  // Dependency arrows
+  validTasks.forEach((task,i)=>{
+    if(!task.depends_on&&task.depends_on!==0)return;
+    const depIdx=typeof task.depends_on==='number'?task.depends_on-1:parseInt(task.depends_on)-1;
+    if(isNaN(depIdx)||depIdx<0||depIdx>=positions.length)return;
+    const from=positions[depIdx];const to=positions[i];
+    if(!from||!to)return;
+    svg+=`<path d="M${from.endX},${from.cy} C${from.endX+20},${from.cy} ${to.startX-20},${to.cy} ${to.startX},${to.cy}" stroke="#DB2777" stroke-width="1.5" fill="none" stroke-dasharray="4,3" marker-end="url(#arr)"/>`;
+  });
+  svg+=`<defs><marker id="arr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#DB2777"/></marker></defs>`;
+
+  // Legend
+  const ly=H-legendH+8;
+  svg+=`<rect x="${labelW}" y="${ly}" width="12" height="8" fill="#2563EB" rx="2" opacity="0.85"/><text x="${labelW+16}" y="${ly+7}" fill="#4A4F6A" font-size="10" font-family="DM Sans,sans-serif">進行中</text>`;
+  svg+=`<rect x="${labelW+65}" y="${ly}" width="12" height="8" fill="#DC2626" rx="2"/><text x="${labelW+81}" y="${ly+7}" fill="#4A4F6A" font-size="10" font-family="DM Sans,sans-serif">期限超過</text>`;
+  svg+=`<line x1="${labelW+140}" y1="${ly+4}" x2="${labelW+160}" y2="${ly+4}" stroke="#DB2777" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arr)"/><text x="${labelW+164}" y="${ly+7}" fill="#4A4F6A" font-size="10" font-family="DM Sans,sans-serif">依存関係</text>`;
+  svg+=`<rect x="${labelW+220}" y="${ly}" width="3" height="10" fill="#2563EB" opacity="0.5"/><text x="${labelW+226}" y="${ly+7}" fill="#4A4F6A" font-size="10" font-family="DM Sans,sans-serif">今日</text>`;
+
+  svg+='</svg>';
+  el.innerHTML=svg;
+}
+
+// ================================================================
+// PDF EXPORT
+// ================================================================
+function exportPDF(){
+  window.print();
+}
+
+// ================================================================
+// GOOGLE TASKS
+// ================================================================
+async function addToGoogleTasks(){
+  if(!minutesData||!minutesData.tasks||!minutesData.tasks.length){showTasksMsg('タスクがありません。','err');return;}
+  const btn=document.getElementById('tasksBtn');
+  btn.textContent='⏳ 登録中...';btn.disabled=true;
+  const ok=await ensureToken();
+  if(!ok){
+    // Copy fallback
+    const txt=minutesData.tasks.map(t=>`【${t.item}】担当:${t.owner} 期限:${t.deadline}\n${t.detail}`).join('\n\n---\n\n');
+    try{await navigator.clipboard.writeText(txt);}catch(e){}
+    showTasksMsg(`⚠️ Google連携が必要です。右上「Google連携」からログインしてください。<br><a href="https://tasks.google.com" target="_blank" style="color:var(--green);">📋 Google Tasksを開く（手動貼り付け）</a>`,'info-msg');
+    btn.textContent='✅ Google Tasksのマイタスクに自動登録';btn.disabled=false;return;
+  }
+  try{
+    let count=0;
+    for(const t of minutesData.tasks){
+      const body={title:`【${t.item}】担当:${t.owner}`,notes:`内容: ${t.detail}\n対応案: ${t.plan}`};
+      if(t.deadline&&t.deadline.includes('/')){const p=t.deadline.split('/');if(p.length===3)body.due=new Date(+p[0],+p[1]-1,+p[2]).toISOString();}
+      const res=await fetch('https://tasks.googleapis.com/tasks/v1/lists/@default/tasks',{method:'POST',headers:{Authorization:`Bearer ${GOOGLE_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify(body)});
+      if(res.ok)count++;
+    }
+    showTasksMsg(`✅ ${count}件のタスクをGoogle Tasks「マイタスク」に登録しました！`,'success-msg');
+  }catch(e){showTasksMsg('⚠️ 登録失敗。Google連携を確認してください。','err');}
+  btn.textContent='✅ Google Tasksのマイタスクに自動登録';btn.disabled=false;
+}
+function showTasksMsg(html,cls){const el=document.getElementById('tasksMsg');el.innerHTML=html;el.className=cls;el.classList.remove('hidden');}
+
+// ================================================================
+// COPY MINUTES
+// ================================================================
+function copyMinutes(){
+  if(!minutesData)return;
+  const m=minutesData;
+  const tasks=(m.tasks||[]).map((t,i)=>`  ${i+1}. ${t.item} | ${t.detail} | 担当:${t.owner} | ${t.plan} | 期限:${t.deadline}`).join('\n');
+  const issues=(m.issues||[]).map(i=>`  ・課題: ${i.issue}\n    対策: ${i.measure}`).join('\n');
+  const disc=(m.discussion||[]).map((d,i)=>`  ${i+1}. ${d}`).join('\n');
+  const imps=(m.improvements||[]).map(i=>`  #${i.rank} ${i.title}\n    ${i.action}`).join('\n');
+  const text=`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【議事録】${m.title}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n日時：${currentDatetime}\n参加者：${currentParticipants||'（未設定）'}\n\n■ 結論\n${m.conclusion}\n\n■ 残された課題と対策\n${issues}\n\n■ 議論されたこと\n${disc}\n\n■ タスク一覧\n${tasks}\n\n■ TOP5 改善案\n${imps}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`.trim();
+  const btn=document.getElementById('copyBtn');
+  if(navigator.clipboard){navigator.clipboard.writeText(text).then(()=>{btn.textContent='✅ コピー完了！';setTimeout(()=>{btn.textContent='📋 テキストコピー';},2500);});}
+}
+
+// ================================================================
+// PARTICIPANTS
+// ================================================================
+function editParticipants(){document.getElementById('participantsRow').classList.add('hidden');document.getElementById('participantsEditRow').classList.remove('hidden');document.getElementById('participantsEdit').value=currentParticipants;}
+function saveParticipants(){currentParticipants=document.getElementById('participantsEdit').value;document.getElementById('minParticipants').textContent=currentParticipants||'（未設定）';document.getElementById('participantsRow').classList.remove('hidden');document.getElementById('participantsEditRow').classList.add('hidden');}
+
+// ================================================================
+// HELPERS
+// ================================================================
+function showError(msg){const e=document.getElementById('errorBox');if(msg){e.textContent='⚠️ '+msg;e.classList.remove('hidden');}else{e.classList.add('hidden');}}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+</script>
+</body>
+</html>

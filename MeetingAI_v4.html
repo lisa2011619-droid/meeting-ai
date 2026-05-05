@@ -770,16 +770,17 @@ JSON形式のみで回答（コードブロック不要）:
 {"title":"会議タイトル","conclusion":"結論（具体的な数字・固有名詞を含む詳細な箇条書き、改行区切り）","issues":[{"issue":"具体的な課題（背景含む）","measure":"具体的な対策","actions":["課題解決のアクション案1（具体的・実行可能）","アクション案2（具体的・実行可能）","アクション案3（具体的・実行可能）"]}],"discussion":["テーマ名：詳細な議論内容（3〜4行。背景・各自の意見・論点・決定事項を含む詳細説明）"],"tasks":[{"item":"タスク名（省略なし完全文章）","detail":"詳細内容（具体的に）","owner":"担当者名","plan":"具体的対応案","deadline":"YYYY/MM/DD","depends_on":null}],"improvements":[{"rank":1,"title":"改善タイトル","action":"具体的アクションプラン（誰が・何を・いつまでに）"}]}`;
 
   try{
-    const systemPrompt='あなたは優秀な議事録作成AIです。指定JSONのみで日本語回答。以下のルールを厳守してください：①タスク名・内容は省略せず完全な文章で記載。②議論されたことは1テーマにつき3〜4行の詳細な説明で記載。③結論・課題・対策も具体的かつ詳細に記載。④音声から読み取れる全ての重要情報を漏らさず記載。⑤省略・要約しすぎず、参加者が会議内容を正確に把握できる粒度で記載。';
-    const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`,{
+    const systemPrompt='あなたは優秀な議事録作成AIです。指定JSONのみで日本語回答。ルール：①タスク名は省略せず完全な文章で記載。②議論は1テーマにつき3〜4行で詳細に記載。③結論・課題・対策は具体的に記載。④重要情報を漏らさず記載。';
+    const fullPrompt=systemPrompt+'\n\n'+prompt;
+    const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${API_KEY}`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
-        system_instruction:{parts:[{text:systemPrompt}]},
-        contents:[{role:'user',parts:[{text:prompt}]}],
-        generationConfig:{maxOutputTokens:8000,temperature:0.3}
+        contents:[{parts:[{text:fullPrompt}]}],
+        generationConfig:{maxOutputTokens:8000,temperature:0.3,responseMimeType:'application/json'}
       })
     });
+    if(!res.ok){const err=await res.text();throw new Error('Gemini error: '+err);}
     const data=await res.json();
     const raw=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
     if(!raw)throw new Error('Gemini response empty');

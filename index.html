@@ -2,279 +2,469 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MeetingAI">
-<meta name="theme-color" content="#070714">
+<meta name="theme-color" content="#0a0c10">
 <title>MeetingAI 議事録</title>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;700&family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg:#070714;--bg2:#0d0d1a;--bg3:#1a1a2e;
-    --accent:#00d4ff;--accent2:#0080ff;
-    --green:#00ff88;--orange:#ff9500;--red:#ff4444;
-    --yellow:#ffaa00;--purple:#aa88ff;--pink:#ff6eb4;
-    --text:#e0e0e0;--muted:#888;--border:#1a1a2e;
+    /* surface: ink */
+    --bg:#0a0c10;--surface:#10131a;--surface2:#161a23;--surface3:#1d222d;
+    --line:rgba(255,255,255,0.07);--line2:rgba(255,255,255,0.12);
+    /* text */
+    --text:#e8e6e1;--text2:#b4b2ab;--muted:#7d7f87;--faint:#4d505a;
+    /* accent: signal mint (primary) + one warm counterpoint */
+    --accent:#6ee7d0;--accent-d:#2bb8a0;--accent-ink:#04201b;
+    --rec:#ff5a4f;
+    --green:#7ddc9c;--amber:#f2b95b;--violet:#b3a1ff;--rose:#ff8fb8;--orange:#ff9a5c;
+    --radius:16px;--radius-sm:10px;
+    --serif:'Shippori Mincho','Noto Serif JP',serif;
+    --sans:'Zen Kaku Gothic New','Noto Sans JP',system-ui,sans-serif;
+    --mono:'JetBrains Mono',ui-monospace,monospace;
+    --ease:cubic-bezier(.22,.8,.3,1);
   }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-  body{background:var(--bg);color:var(--text);font-family:'Noto Sans JP',sans-serif;min-height:100dvh;overscroll-behavior:none;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.7;
+    min-height:100dvh;overscroll-behavior:none;-webkit-font-smoothing:antialiased;
+    background-image:radial-gradient(900px 420px at 85% -10%,rgba(110,231,208,0.07),transparent 60%),radial-gradient(700px 400px at -10% 0%,rgba(179,161,255,0.05),transparent 60%);
+    background-attachment:fixed;
+  }
+  .icon{width:1.15em;height:1.15em;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  button{font-family:inherit;}
 
-  /* API SCREEN */
-  .apiscreen{min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:radial-gradient(ellipse at 50% 0%,#1a0a2e,#070714);}
-  .apiscreen .logo{font-size:52px;margin-bottom:16px;}
-  .apiscreen h1{font-size:24px;color:var(--accent);margin-bottom:8px;font-family:'Noto Serif JP',serif;}
-  .apiscreen p{font-size:13px;color:var(--muted);text-align:center;line-height:1.9;margin-bottom:24px;}
-  .api-input{width:100%;background:#0d0d1a;border:1px solid rgba(0,212,255,0.3);border-radius:10px;color:var(--text);padding:14px 16px;font-size:14px;font-family:inherit;outline:none;margin-bottom:10px;}
-  .api-hint{font-size:11px;color:#445;text-align:center;margin-bottom:20px;line-height:1.9;}
-  .api-hint a{color:#667;}
+  /* ───────── API SCREEN ───────── */
+  .apiscreen{
+    min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:max(24px,env(safe-area-inset-top)) 24px max(24px,env(safe-area-inset-bottom));
+    max-width:440px;margin:0 auto;
+  }
+  .mark{
+    width:68px;height:68px;border-radius:22px;display:grid;place-items:center;margin-bottom:26px;
+    background:linear-gradient(145deg,var(--surface3),var(--surface));border:1px solid var(--line2);
+    color:var(--accent);box-shadow:0 0 0 6px rgba(110,231,208,0.04),0 20px 50px -20px rgba(110,231,208,0.35);
+  }
+  .mark .icon{width:30px;height:30px;stroke-width:1.5;}
+  .apiscreen h1{font-family:var(--serif);font-size:34px;font-weight:700;letter-spacing:.02em;line-height:1.2;margin-bottom:6px;}
+  .apiscreen h1 span{color:var(--accent);}
+  .apiscreen .lede{font-size:13px;color:var(--muted);text-align:center;line-height:1.95;margin-bottom:30px;}
+  .api-input{
+    width:100%;background:var(--surface);border:1px solid var(--line2);border-radius:var(--radius-sm);
+    color:var(--text);padding:15px 16px;font-size:14px;font-family:var(--mono);letter-spacing:.02em;outline:none;margin-bottom:12px;
+    transition:border-color .2s,box-shadow .2s;
+  }
+  .api-input:focus{border-color:var(--accent);box-shadow:0 0 0 4px rgba(110,231,208,0.12);}
+  .api-hint{display:flex;gap:10px;align-items:flex-start;font-size:11.5px;color:var(--muted);line-height:1.9;margin:6px 0 24px;width:100%;}
+  .api-hint .icon{margin-top:4px;color:var(--faint);}
+  .api-hint a{color:var(--text2);text-underline-offset:3px;}
 
-  /* TOPBAR */
-  .topbar{background:linear-gradient(90deg,#0d0d1a,#1a0a2e);border-bottom:1px solid rgba(0,212,255,0.15);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
-  .topbar h1{font-size:17px;font-weight:700;color:var(--accent);letter-spacing:1px;}
-  .topbar .sub{font-size:10px;color:#445;margin-top:2px;}
-  .topbar .dt{font-size:11px;color:#445;}
-  .key-badge{font-size:10px;color:var(--green);background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.2);border-radius:20px;padding:3px 10px;cursor:pointer;}
+  /* ───────── TOPBAR ───────── */
+  .topbar{
+    background:rgba(10,12,16,0.82);backdrop-filter:blur(14px) saturate(1.4);-webkit-backdrop-filter:blur(14px) saturate(1.4);
+    border-bottom:1px solid var(--line);padding:calc(12px + env(safe-area-inset-top)) 18px 12px;
+    display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;
+  }
+  .brand{display:flex;align-items:center;gap:11px;}
+  .brand-mark{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:var(--surface2);border:1px solid var(--line2);color:var(--accent);}
+  .brand h1{font-family:var(--serif);font-size:17px;font-weight:700;letter-spacing:.03em;line-height:1.15;}
+  .brand .sub{font-size:10px;color:var(--muted);letter-spacing:.12em;}
+  .top-right{display:flex;align-items:center;gap:10px;}
+  .dt{font-family:var(--mono);font-size:11px;color:var(--muted);}
+  .key-badge{
+    display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);background:var(--surface2);
+    border:1px solid var(--line2);border-radius:999px;padding:5px 11px;cursor:pointer;transition:border-color .2s,color .2s;
+  }
+  .key-badge:hover{border-color:var(--accent);color:var(--accent);}
+  .key-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);}
 
-  /* TABS */
-  .tabs{display:flex;background:#0a0a1a;border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
-  .tabs::-webkit-scrollbar{display:none;}
-  .tab{padding:13px 18px;background:transparent;border:none;border-bottom:2px solid transparent;color:#445;cursor:pointer;font-size:13px;font-family:inherit;white-space:nowrap;transition:color 0.2s;}
-  .tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:700;}
+  /* ───────── TABS ───────── */
+  .tabs{display:flex;gap:4px;padding:10px 14px 0;max-width:680px;margin:0 auto;}
+  .tab{
+    flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:10px 4px 12px;background:transparent;border:none;
+    border-bottom:2px solid var(--line);color:var(--faint);cursor:pointer;font-size:13px;white-space:nowrap;
+    transition:color .25s,border-color .25s;text-align:left;
+  }
+  .tab .n{font-family:var(--mono);font-size:10px;letter-spacing:.14em;}
+  .tab .l{font-size:14px;font-weight:500;}
+  .tab:hover{color:var(--text2);}
+  .tab.active{color:var(--text);border-bottom-color:var(--accent);}
+  .tab.active .n{color:var(--accent);}
 
-  .main{padding:16px;max-width:680px;margin:0 auto;padding-bottom:40px;}
-  .card{background:var(--bg2);border:1px solid rgba(0,212,255,0.12);border-radius:14px;padding:18px;margin-bottom:16px;}
-  .section{background:var(--bg2);border-radius:12px;padding:16px;margin-bottom:14px;}
-  .section-title{font-size:13px;font-weight:700;margin-bottom:12px;}
+  .main{padding:20px 16px max(48px,env(safe-area-inset-bottom));max-width:680px;margin:0 auto;}
+  .pane{animation:fadein .45s var(--ease);}
 
-  /* RECORD */
-  .rec-btn{width:100px;height:100px;border-radius:50%;border:2px solid rgba(0,212,255,0.3);background:radial-gradient(circle,rgba(0,212,255,0.12),rgba(0,128,255,0.06));font-size:42px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 0 20px rgba(0,212,255,0.15);transition:all 0.3s;margin-bottom:16px;}
-  .rec-btn.recording{background:radial-gradient(circle,rgba(255,68,68,0.4),rgba(255,0,0,0.2));border-color:var(--red);box-shadow:0 0 30px rgba(255,68,68,0.5);animation:pulse 1.5s infinite;}
-  @keyframes pulse{0%,100%{box-shadow:0 0 20px rgba(255,68,68,0.5)}50%{box-shadow:0 0 45px rgba(255,68,68,0.8)}}
-  @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-bottom:14px;}
+  .card-label{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);letter-spacing:.1em;margin-bottom:12px;}
+  .card-label .icon{color:var(--accent);}
+
+  /* ───────── RECORD ───────── */
+  .rec-card{text-align:center;padding:36px 20px 28px;position:relative;overflow:hidden;}
+  .rec-card::before{content:'';position:absolute;inset:0;background:radial-gradient(360px 220px at 50% 38%,rgba(110,231,208,0.07),transparent 70%);pointer-events:none;transition:background .6s;}
+  .rec-card.live::before{background:radial-gradient(360px 220px at 50% 38%,rgba(255,90,79,0.12),transparent 70%);}
+  .rec-stage{position:relative;width:132px;height:132px;margin:0 auto 22px;display:grid;place-items:center;}
+  .rec-stage::before,.rec-stage::after{content:'';position:absolute;inset:0;border-radius:50%;border:1px solid var(--line2);transition:border-color .4s;}
+  .rec-stage::after{inset:-14px;border-color:var(--line);}
+  .rec-btn{
+    position:relative;width:104px;height:104px;border-radius:50%;border:1px solid rgba(110,231,208,0.4);cursor:pointer;
+    background:radial-gradient(circle at 35% 28%,rgba(110,231,208,0.28),rgba(110,231,208,0.06) 70%);color:var(--accent);
+    display:grid;place-items:center;transition:transform .2s var(--ease),background .4s,border-color .4s,color .4s,box-shadow .4s;
+    box-shadow:0 14px 40px -14px rgba(110,231,208,0.5),inset 0 1px 0 rgba(255,255,255,0.1);
+  }
+  .rec-btn:hover{transform:scale(1.04);}
+  .rec-btn:active{transform:scale(.96);}
+  .rec-btn .icon{width:38px;height:38px;stroke-width:1.5;}
+  .rec-btn .i-stop{display:none;fill:currentColor;stroke:none;width:30px;height:30px;}
+  .rec-btn.recording{border-color:rgba(255,90,79,0.7);color:#fff;background:radial-gradient(circle at 35% 28%,rgba(255,90,79,0.7),rgba(255,90,79,0.25) 75%);animation:pulse 1.8s infinite;}
+  .rec-btn.recording .i-mic{display:none;}
+  .rec-btn.recording .i-stop{display:block;}
+  .rec-btn.recording ~ .halo{opacity:1;}
+  .halo{position:absolute;inset:-14px;border-radius:50%;border:1px solid var(--rec);opacity:0;animation:ring 1.8s infinite;pointer-events:none;transition:opacity .3s;}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,90,79,0.45),0 14px 40px -12px rgba(255,90,79,0.6)}50%{box-shadow:0 0 0 14px rgba(255,90,79,0),0 14px 40px -12px rgba(255,90,79,0.6)}}
+  @keyframes ring{0%{transform:scale(.9);opacity:.7}100%{transform:scale(1.25);opacity:0}}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
   @keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
-  @keyframes fadein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-  .rec-status{font-size:12px;color:var(--muted);}
-  .rec-status.live{color:var(--red);animation:blink 1s infinite;}
+  @keyframes fadein{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 
-  .btn{width:100%;padding:14px;border:none;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:0.5px;transition:opacity 0.2s,transform 0.1s;}
-  .btn:active{transform:scale(0.98);}
-  .btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;}
-  .btn-stop{background:rgba(255,68,68,0.2);border:1px solid var(--red);color:#ff8888;}
-  .btn-outline{background:transparent;border:1px solid var(--accent);color:var(--accent);}
-  .btn:disabled{opacity:0.3;cursor:not-allowed;}
+  .wave{display:flex;justify-content:center;align-items:center;gap:4px;height:22px;margin-bottom:10px;opacity:0;transition:opacity .3s;}
+  .wave i{width:3px;height:6px;border-radius:2px;background:var(--rec);}
+  .rec-card.live .wave{opacity:1;}
+  .rec-card.live .wave i{animation:bar 1s ease-in-out infinite;}
+  .wave i:nth-child(2n){animation-delay:.15s!important}.wave i:nth-child(3n){animation-delay:.3s!important}.wave i:nth-child(5n){animation-delay:.45s!important}
+  @keyframes bar{0%,100%{height:5px}50%{height:20px}}
 
-  .field{margin-bottom:14px;}
-  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;}
-  .req{color:var(--red);}
-  input,textarea{width:100%;background:#0d0d1a;border:1px solid #1e1e30;border-radius:8px;color:var(--text);padding:10px 12px;font-size:13px;font-family:inherit;line-height:1.7;outline:none;transition:border-color 0.2s;}
-  input:focus,textarea:focus{border-color:rgba(0,212,255,0.4);}
+  .rec-status{font-size:13px;color:var(--text2);position:relative;}
+  .rec-status.live{color:var(--rec);font-family:var(--mono);font-size:12px;letter-spacing:.08em;animation:blink 1.2s infinite;}
+
+  /* ───────── BUTTONS ───────── */
+  .btn{
+    width:100%;display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:15px 18px;border:1px solid transparent;border-radius:var(--radius-sm);
+    font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.04em;transition:transform .15s,box-shadow .25s,background .25s,opacity .2s;
+  }
+  .btn:active{transform:scale(.985);}
+  .btn-primary{background:var(--accent);color:var(--accent-ink);box-shadow:0 10px 30px -12px rgba(110,231,208,0.6),inset 0 1px 0 rgba(255,255,255,0.35);}
+  .btn-primary:hover{box-shadow:0 14px 36px -10px rgba(110,231,208,0.75),inset 0 1px 0 rgba(255,255,255,0.35);}
+  .btn-stop{background:rgba(255,90,79,0.1);border-color:rgba(255,90,79,0.5);color:#ff9a92;}
+  .btn-outline{background:transparent;border-color:var(--line2);color:var(--text);}
+  .btn-outline:hover{border-color:var(--accent);color:var(--accent);}
+  .btn:disabled{opacity:.35;cursor:not-allowed;box-shadow:none;}
+
+  /* ───────── FORM ───────── */
+  .lead{font-size:13px;color:var(--muted);margin-bottom:22px;}
+  .field{margin-bottom:18px;}
+  .field label{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text2);margin-bottom:8px;letter-spacing:.04em;}
+  .field label .icon{color:var(--accent);width:15px;height:15px;}
+  .req{font-family:var(--mono);font-size:9px;color:var(--rec);border:1px solid rgba(255,90,79,0.4);border-radius:4px;padding:0 5px;letter-spacing:.08em;line-height:1.6;}
+  input,textarea{
+    width:100%;background:var(--surface);border:1px solid var(--line2);border-radius:var(--radius-sm);color:var(--text);
+    padding:12px 14px;font-size:14px;font-family:inherit;line-height:1.8;outline:none;transition:border-color .2s,box-shadow .2s;
+  }
+  input::placeholder,textarea::placeholder{color:var(--faint);}
+  input:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 4px rgba(110,231,208,0.1);}
   textarea{resize:vertical;}
-  audio{width:100%;margin-top:8px;filter:invert(0.85) hue-rotate(180deg);}
-  .transcript-box{background:#0a0a14;border:1px solid #1a1a2e;border-radius:8px;padding:12px;font-size:13px;color:#ccc;line-height:1.9;max-height:160px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;}
+  audio{width:100%;height:42px;color-scheme:dark;}
+  .transcript-box{
+    background:var(--bg);border:1px solid var(--line);border-radius:var(--radius-sm);padding:14px;font-size:13px;color:var(--text2);
+    line-height:1.95;max-height:170px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;
+  }
 
-  .error{background:rgba(255,68,68,0.1);border:1px solid rgba(255,68,68,0.4);border-radius:8px;padding:12px;color:#ff8888;font-size:13px;margin-bottom:14px;animation:fadein 0.3s;}
+  .error{display:flex;gap:9px;background:rgba(255,90,79,0.08);border:1px solid rgba(255,90,79,0.35);border-radius:var(--radius-sm);padding:12px 14px;color:#ffaaa3;font-size:13px;margin-bottom:16px;animation:fadein .3s;}
+  .error::before{content:'!';flex-shrink:0;width:18px;height:18px;border-radius:50%;background:var(--rec);color:#1a0705;font-weight:700;font-size:12px;display:grid;place-items:center;margin-top:3px;}
 
-  .minutes-header{background:linear-gradient(135deg,#0d0d1a,#1a1a2e);border:1px solid rgba(0,212,255,0.15);border-radius:14px;padding:20px;margin-bottom:14px;}
-  .minutes-title{font-family:'Noto Serif JP',serif;font-size:18px;color:var(--accent);margin-bottom:12px;}
-  .meta-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px;}
-  .meta-label{color:var(--muted);min-width:50px;}
+  /* ───────── MINUTES ───────── */
+  .minutes-header{
+    position:relative;background:linear-gradient(160deg,var(--surface2),var(--surface));border:1px solid var(--line2);
+    border-radius:var(--radius);padding:24px 22px 20px;margin-bottom:14px;overflow:hidden;
+  }
+  .minutes-header::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(var(--accent),transparent);}
+  .eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--accent);margin-bottom:10px;}
+  .minutes-title{font-family:var(--serif);font-size:23px;font-weight:700;line-height:1.5;margin-bottom:18px;letter-spacing:.02em;}
+  .meta-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line);font-size:13px;}
+  .meta-label{color:var(--muted);min-width:54px;font-size:11px;letter-spacing:.1em;}
   .meta-val{color:var(--text);flex:1;}
-  .edit-btn{background:transparent;border:1px solid #333;color:#666;border-radius:4px;padding:2px 8px;font-size:10px;cursor:pointer;font-family:inherit;}
-  .save-btn{background:rgba(0,212,255,0.15);border:1px solid var(--accent);color:var(--accent);border-radius:4px;padding:2px 10px;font-size:10px;cursor:pointer;font-family:inherit;}
-  .edit-input{flex:1;background:#0d1117;border:1px solid rgba(0,212,255,0.3);border-radius:4px;color:var(--text);padding:2px 8px;font-size:12px;font-family:inherit;}
+  .meta-val.mono{font-family:var(--mono);font-size:12px;}
+  .edit-btn,.save-btn{display:inline-flex;align-items:center;gap:5px;background:transparent;border:1px solid var(--line2);color:var(--text2);border-radius:999px;padding:3px 11px;font-size:11px;cursor:pointer;transition:all .2s;}
+  .edit-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .edit-btn .icon{width:12px;height:12px;}
+  .save-btn{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700;}
+  .edit-input{flex:1;padding:6px 10px;font-size:13px;border-radius:8px;}
 
-  .task-table{width:100%;border-collapse:collapse;font-size:11px;}
-  .task-table th{padding:8px 10px;color:var(--accent);border-bottom:1px solid rgba(0,212,255,0.2);text-align:left;background:#0a1628;white-space:nowrap;}
-  .task-table td{padding:7px 10px;border-bottom:1px solid #12122a;}
-  .task-table tr:nth-child(even) td{background:rgba(255,255,255,0.02);}
+  .section{
+    --c:var(--accent);background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-bottom:14px;
+    animation:fadein .5s var(--ease) both;
+  }
+  .section:nth-of-type(2){animation-delay:.04s}.section:nth-of-type(3){animation-delay:.08s}.section:nth-of-type(4){animation-delay:.12s}
+  .section:nth-of-type(5){animation-delay:.16s}.section:nth-of-type(6){animation-delay:.2s}.section:nth-of-type(7){animation-delay:.24s}
+  .section-title{display:flex;align-items:center;gap:10px;font-family:var(--serif);font-size:16px;font-weight:700;margin-bottom:14px;letter-spacing:.03em;}
+  .section-title .ic{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c);}
+  .section-title .ic .icon{width:16px;height:16px;}
+  .section.c-green{--c:var(--green)}.section.c-amber{--c:var(--amber)}.section.c-violet{--c:var(--violet)}
+  .section.c-rose{--c:var(--rose)}.section.c-orange{--c:var(--orange)}
+
+  .conclusion{font-size:14px;line-height:2;color:var(--text);white-space:pre-wrap;}
+  .section.hero{background:linear-gradient(160deg,color-mix(in srgb,var(--c) 9%,var(--surface)),var(--surface));border-color:color-mix(in srgb,var(--c) 28%,transparent);}
+
+  .issue-card{border-left:2px solid var(--amber);background:var(--surface2);border-radius:0 var(--radius-sm) var(--radius-sm) 0;padding:12px 14px;margin-bottom:10px;}
+  .issue-card:last-child,.imp-card:last-child{margin-bottom:0;}
+  .issue-title{color:var(--amber);font-size:13px;font-weight:700;margin-bottom:4px;}
+  .issue-measure{color:var(--text2);font-size:13px;}
+  .disc-list{list-style:none;}
+  .disc-list li{position:relative;padding:9px 0 9px 22px;font-size:13.5px;line-height:1.9;color:var(--text);border-top:1px solid var(--line);}
+  .disc-list li:first-child{border-top:none;padding-top:0;}
+  .disc-list li::before{content:'';position:absolute;left:4px;top:1.05em;width:6px;height:6px;border-radius:50%;background:var(--violet);}
+  .disc-list li:first-child::before{top:.75em;}
+
+  .imp-card{display:flex;gap:14px;background:var(--surface2);border-radius:var(--radius-sm);padding:14px;margin-bottom:10px;}
+  .imp-num{font-family:var(--mono);font-size:22px;font-weight:500;color:var(--orange);line-height:1.2;min-width:30px;}
+  .imp-rank{color:var(--text);font-size:14px;font-weight:700;margin-bottom:3px;}
+  .imp-action{color:var(--text2);font-size:13px;line-height:1.85;}
+
+  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px;padding:0 4px;}
+  .task-table{width:100%;border-collapse:collapse;font-size:12px;min-width:520px;}
+  .task-table th{padding:8px 10px;color:var(--muted);font-weight:500;font-size:10px;letter-spacing:.12em;border-bottom:1px solid var(--line2);text-align:left;white-space:nowrap;}
+  .task-table td{padding:11px 10px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--text2);line-height:1.7;}
+  .task-table tr:last-child td{border-bottom:none;}
+  .task-table .t-item{color:var(--text);font-weight:500;}
+  .task-table .t-owner{color:var(--accent);white-space:nowrap;}
+  .task-table .t-due{font-family:var(--mono);font-size:11px;color:var(--amber);white-space:nowrap;}
 
   .gantt-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
-  .gantt-row{display:flex;align-items:center;margin-bottom:7px;height:22px;}
-  .gantt-label{width:100px;flex-shrink:0;font-size:10px;color:#bbb;padding-right:8px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
-  .gantt-track{flex:1;position:relative;height:12px;background:#12122a;border-radius:3px;min-width:200px;}
-  .gantt-bar{position:absolute;height:100%;border-radius:3px;min-width:4px;}
-  .gantt-today{position:absolute;top:-4px;bottom:-4px;width:1px;background:var(--orange);opacity:0.7;}
-  .gantt-header{display:flex;margin-bottom:4px;}
-  .gantt-h-label{width:100px;flex-shrink:0;}
+  .gantt-inner{min-width:340px;}
+  .gantt-row{display:flex;align-items:center;margin-bottom:8px;height:24px;}
+  .gantt-label{width:104px;flex-shrink:0;font-size:11px;color:var(--text2);padding-right:10px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+  .gantt-track{flex:1;position:relative;height:10px;background:var(--surface3);border-radius:999px;min-width:200px;}
+  .gantt-bar{position:absolute;height:100%;border-radius:999px;min-width:6px;background:linear-gradient(90deg,var(--accent-d),var(--accent));box-shadow:0 0 12px rgba(110,231,208,0.35);}
+  .gantt-bar.over{background:linear-gradient(90deg,#d6443b,var(--rec));box-shadow:0 0 12px rgba(255,90,79,0.4);}
+  .gantt-today{position:absolute;top:-5px;bottom:-5px;width:1px;background:var(--amber);}
+  .gantt-header{display:flex;margin-bottom:8px;}
+  .gantt-h-label{width:104px;flex-shrink:0;}
   .gantt-h-dates{flex:1;display:flex;min-width:200px;}
-  .gantt-date{font-size:9px;color:#444;text-align:center;flex:1;}
+  .gantt-date{font-family:var(--mono);font-size:9.5px;color:var(--faint);text-align:left;flex:1;}
+  .gantt-empty{color:var(--muted);font-size:12px;}
 
-  .issue-card{background:#1a1200;border:1px solid rgba(255,170,0,0.2);border-radius:8px;padding:12px;margin-bottom:10px;}
-  .issue-title{color:#ffcc44;font-size:12px;margin-bottom:5px;}
-  .issue-measure{color:#aaa;font-size:12px;}
-  .imp-card{background:#1a0e00;border:1px solid rgba(255,149,0,0.2);border-radius:8px;padding:12px;margin-bottom:10px;}
-  .imp-rank{color:#ffcc00;font-size:13px;font-weight:700;margin-bottom:6px;}
-  .imp-action{color:#ccc;font-size:12px;line-height:1.8;}
+  .loading-bar{height:3px;background:var(--surface3);border-radius:2px;overflow:hidden;position:relative;margin-top:14px;}
+  .loading-bar::after{content:'';position:absolute;width:30%;height:100%;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:shimmer 1.4s infinite;}
+  .loading{text-align:center;color:var(--accent);font-size:13px;letter-spacing:.06em;}
+  .loading .spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(110,231,208,0.25);border-top-color:var(--accent);border-radius:50%;vertical-align:-2px;margin-right:8px;animation:spin .8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
 
-  .loading-bar{height:4px;background:#1a1a2e;border-radius:2px;overflow:hidden;position:relative;margin-top:10px;}
-  .loading-bar::after{content:'';position:absolute;width:30%;height:100%;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:shimmer 1.5s infinite;}
+  .copy-btn{margin-top:6px;}
+  .guide{background:var(--surface);border:1px dashed var(--line2);border-radius:var(--radius);padding:18px 20px;margin-top:18px;font-size:12.5px;line-height:2.1;color:var(--text2);}
+  .guide-title{display:flex;align-items:center;gap:8px;color:var(--text);font-weight:700;margin-bottom:6px;font-size:13px;}
+  .guide-title .icon{color:var(--accent);}
+  .guide strong{color:var(--text);font-weight:500;}
+  .guide code{background:var(--surface3);padding:2px 8px;border-radius:6px;color:var(--accent);font-family:var(--mono);font-size:11px;word-break:break-all;}
 
-  .guide{background:rgba(0,255,136,0.05);border:1px solid rgba(0,255,136,0.2);border-radius:12px;padding:16px;margin-top:20px;font-size:12px;line-height:2;color:#aaa;}
-  .guide-title{color:var(--green);font-weight:700;margin-bottom:8px;font-size:13px;}
-  .guide code{background:#1a2a1a;padding:1px 6px;border-radius:3px;color:var(--green);font-size:11px;}
-
-  .copy-btn{width:100%;padding:14px;background:rgba(0,212,255,0.08);border:1px solid var(--accent);border-radius:10px;color:var(--accent);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:0.5px;transition:background 0.2s;margin-top:6px;}
-  .copy-btn:active{background:rgba(0,212,255,0.2);}
-
-  .empty{text-align:center;padding:50px 20px;color:#334;}
-  .empty .icon{font-size:48px;margin-bottom:14px;}
+  .empty{text-align:center;padding:64px 20px;color:var(--muted);}
+  .empty .em-ic{width:64px;height:64px;border-radius:20px;border:1px dashed var(--line2);display:grid;place-items:center;margin:0 auto 18px;color:var(--faint);}
+  .empty .em-ic .icon{width:28px;height:28px;}
   .hidden{display:none!important;}
-  .fadein{animation:fadein 0.4s ease;}
+  .fadein{animation:fadein .5s var(--ease);}
   ::-webkit-scrollbar{width:4px;height:4px;}
   ::-webkit-scrollbar-track{background:transparent;}
-  ::-webkit-scrollbar-thumb{background:#2a2a4a;border-radius:2px;}
+  ::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:2px;}
+
+  @media (min-width:560px){
+    .minutes-title{font-size:26px;}
+    .main{padding-top:28px;}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;}
+  }
 </style>
 </head>
 <body>
 
+<!-- ===== アイコン定義 ===== -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M16 7l3 3"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-note" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r=".6"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a6.5 6.5 0 0 1 3.5 5.5"/></symbol>
+    <symbol id="i-wave" viewBox="0 0 24 24"><path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 11v2M21 12h0"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18h0"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></symbol>
+    <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+    <symbol id="i-rocket" viewBox="0 0 24 24"><path d="M7 17L17 7M9 7h8v8"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11" height="12" rx="2"/><path d="M15.5 8.5V5a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 5v10A1.5 1.5 0 0 0 6 16.5h2.5"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+    <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V6l11-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></symbol>
+  </defs>
+</svg>
+
 <!-- ===== APIキー入力画面 ===== -->
 <div id="apiScreen" class="apiscreen">
-  <div class="logo">🎙</div>
-  <h1>MeetingAI</h1>
-  <p>自動議事録システムへようこそ！<br>AnthropicのAPIキーを入力してください<br>（次回から自動でログインします）</p>
-  <input class="api-input" type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." autocomplete="off" spellcheck="false">
+  <div class="mark"><svg class="icon"><use href="#i-mic"/></svg></div>
+  <h1>Meeting<span>AI</span></h1>
+  <p class="lede">話すだけで、議事録とタスクが整う。<br>AnthropicのAPIキーを入力してはじめましょう<br>（次回から自動でログインします）</p>
+  <input class="api-input" type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." autocomplete="off" spellcheck="false" aria-label="Anthropic APIキー">
   <div class="api-hint">
-    🔒 キーはこのスマホの中にだけ保存されます<br>
-    外部に送信されることはありません<br><br>
-    キーをお持ちでない方 → <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>
+    <svg class="icon"><use href="#i-lock"/></svg>
+    <div>キーはこの端末の中にだけ保存され、Anthropic以外には送信されません。<br>
+    キーをお持ちでない方 → <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a></div>
   </div>
-  <button class="btn btn-primary" onclick="saveApiKey()">✅ 保存してはじめる</button>
-  <div id="apiError" class="error hidden" style="margin-top:12px;width:100%;"></div>
+  <button class="btn btn-primary" onclick="saveApiKey()"><svg class="icon"><use href="#i-check"/></svg>保存してはじめる</button>
+  <div id="apiError" class="error hidden" style="margin-top:14px;width:100%;" role="alert"></div>
 </div>
 
 <!-- ===== メインアプリ ===== -->
 <div id="mainApp" class="hidden">
-  <div class="topbar">
-    <div>
-      <h1>🎙 MeetingAI</h1>
-      <div class="sub">自動議事録システム</div>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark"><svg class="icon"><use href="#i-mic"/></svg></div>
+      <div>
+        <h1>MeetingAI</h1>
+        <div class="sub">AUTO MINUTES</div>
+      </div>
     </div>
-    <div style="display:flex;align-items:center;gap:8px;">
+    <div class="top-right">
       <div class="dt" id="topDt"></div>
-      <div class="key-badge" onclick="resetApiKey()">🔑 変更</div>
+      <button class="key-badge" onclick="resetApiKey()" style="font-family:inherit;"><span class="dot"></span>キー変更</button>
     </div>
-  </div>
+  </header>
 
-  <div class="tabs">
-    <button class="tab active" onclick="switchTab('record')" id="tab-record">🎙 録音</button>
-    <button class="tab" onclick="switchTab('form')" id="tab-form">📝 情報入力</button>
-    <button class="tab" onclick="switchTab('minutes')" id="tab-minutes">📄 議事録</button>
-  </div>
+  <nav class="tabs" role="tablist">
+    <button class="tab active" onclick="switchTab('record')" id="tab-record" role="tab"><span class="n">01</span><span class="l">録音</span></button>
+    <button class="tab" onclick="switchTab('form')" id="tab-form" role="tab"><span class="n">02</span><span class="l">情報入力</span></button>
+    <button class="tab" onclick="switchTab('minutes')" id="tab-minutes" role="tab"><span class="n">03</span><span class="l">議事録</span></button>
+  </nav>
 
-  <div class="main">
-    <div class="error hidden" id="errorBox"></div>
+  <main class="main">
+    <div class="error hidden" id="errorBox" role="alert"></div>
 
     <!-- 録音 -->
-    <div id="pane-record">
-      <div class="card" style="text-align:center;">
-        <div class="rec-btn" id="recBtn" onclick="toggleRecord()">🎙</div>
+    <div id="pane-record" class="pane">
+      <div class="card rec-card" id="recCard">
+        <div class="rec-stage">
+          <button class="rec-btn" id="recBtn" onclick="toggleRecord()" aria-label="録音の開始／停止">
+            <svg class="icon i-mic"><use href="#i-mic"/></svg>
+            <svg class="icon i-stop" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="3"/></svg>
+          </button>
+          <span class="halo"></span>
+        </div>
+        <div class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
         <div class="rec-status" id="recStatus">タップして録音開始</div>
-        <div style="margin-top:16px;" id="stopWrap" class="hidden">
-          <button class="btn btn-stop" onclick="stopRec()">⏹ 録音を停止する</button>
+        <div style="margin-top:22px;" id="stopWrap" class="hidden">
+          <button class="btn btn-stop" onclick="stopRec()">録音を停止する</button>
         </div>
       </div>
       <div class="card hidden" id="audioWrap">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">🎵 録音データ</div>
+        <div class="card-label"><svg class="icon"><use href="#i-music"/></svg>録音データ</div>
         <audio id="audioPlayer" controls></audio>
       </div>
       <div class="card hidden" id="liveWrap">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">📝 リアルタイム文字起こし</div>
+        <div class="card-label"><svg class="icon"><use href="#i-wave"/></svg>リアルタイム文字起こし</div>
         <div class="transcript-box" id="liveText"></div>
       </div>
       <div id="nextBtnWrap" class="hidden" style="margin-top:4px;">
-        <button class="btn btn-primary" onclick="switchTab('form')">次へ：情報入力 →</button>
+        <button class="btn btn-primary" onclick="switchTab('form')">次へ：情報入力<svg class="icon"><use href="#i-arrow"/></svg></button>
       </div>
     </div>
 
     <!-- 情報入力 -->
-    <div id="pane-form" class="hidden">
-      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">会議情報を入力してAI議事録を生成します</p>
+    <div id="pane-form" class="pane hidden">
+      <p class="lead">会議情報を入力して、AIに議事録を生成させます。</p>
       <div class="field">
-        <label>🎯 目的・ゴール設定（Goal） <span class="req">*</span></label>
+        <label for="goal"><svg class="icon"><use href="#i-target"/></svg>目的・ゴール設定（Goal）<span class="req">必須</span></label>
         <textarea id="goal" rows="3" placeholder="例：Q2の販売戦略を決定し、担当者とスケジュールを確定する"></textarea>
       </div>
       <div class="field">
-        <label>👥 参加者</label>
+        <label for="participants"><svg class="icon"><use href="#i-users"/></svg>参加者</label>
         <input type="text" id="participants" placeholder="例：山田太郎、鈴木花子、佐藤一郎">
       </div>
       <div class="field">
-        <label>📝 文字起こし（録音から自動入力、修正可） <span class="req">*</span></label>
+        <label for="transcriptInput"><svg class="icon"><use href="#i-note"/></svg>文字起こし（録音から自動入力、修正可）<span class="req">必須</span></label>
         <textarea id="transcriptInput" rows="8" placeholder="録音から自動で文字起こしされます。手動入力・修正も可能です。"></textarea>
       </div>
-      <button class="btn btn-primary" id="generateBtn" onclick="generateMinutes()">✨ AI議事録を生成</button>
-      <div class="hidden" id="genLoading" style="text-align:center;padding:16px;color:var(--accent);font-size:13px;">
-        ⚙️ AIが議事録を生成中...<div class="loading-bar"></div>
+      <button class="btn btn-primary" id="generateBtn" onclick="generateMinutes()"><svg class="icon"><use href="#i-spark"/></svg>AI議事録を生成</button>
+      <div class="hidden loading" id="genLoading" style="padding:18px;">
+        <span class="spin"></span>AIが議事録を生成中...<div class="loading-bar"></div>
       </div>
     </div>
 
     <!-- 議事録 -->
-    <div id="pane-minutes" class="hidden">
-      <div class="hidden" id="minLoading" style="text-align:center;padding:40px 20px;color:var(--accent);font-size:14px;">
-        ⚙️ AI議事録を生成中...<div class="loading-bar" style="margin-top:16px;"></div>
+    <div id="pane-minutes" class="pane hidden">
+      <div class="hidden loading" id="minLoading" style="padding:56px 20px;">
+        <span class="spin"></span>AI議事録を生成中...<div class="loading-bar" style="margin-top:18px;"></div>
       </div>
       <div class="empty hidden" id="minEmpty">
-        <div class="icon">📄</div>
-        <div style="color:#445;">議事録はまだ生成されていません</div>
-        <button class="btn btn-outline" onclick="switchTab('record')" style="margin-top:16px;width:auto;padding:10px 24px;">録音を開始する</button>
+        <div class="em-ic"><svg class="icon"><use href="#i-note"/></svg></div>
+        <div>議事録はまだ生成されていません</div>
+        <button class="btn btn-outline" onclick="switchTab('record')" style="margin-top:20px;width:auto;padding:11px 26px;">録音を開始する</button>
       </div>
       <div id="minContent" class="hidden fadein">
         <div class="minutes-header">
-          <div class="minutes-title" id="minTitle">📄 議事録</div>
-          <div class="meta-row"><span class="meta-label">日時：</span><span class="meta-val" id="minDatetime"></span></div>
+          <div class="eyebrow">MINUTES</div>
+          <div class="minutes-title" id="minTitle">議事録</div>
+          <div class="meta-row"><span class="meta-label">日時</span><span class="meta-val mono" id="minDatetime"></span></div>
           <div class="meta-row" id="participantsRow">
-            <span class="meta-label">参加者：</span>
+            <span class="meta-label">参加者</span>
             <span class="meta-val" id="minParticipants"></span>
-            <button class="edit-btn" onclick="editParticipants()">✎ 編集</button>
+            <button class="edit-btn" onclick="editParticipants()"><svg class="icon"><use href="#i-edit"/></svg>編集</button>
           </div>
           <div class="meta-row hidden" id="participantsEditRow">
-            <span class="meta-label">参加者：</span>
-            <input class="edit-input" id="participantsEdit" type="text">
+            <span class="meta-label">参加者</span>
+            <input class="edit-input" id="participantsEdit" type="text" aria-label="参加者を編集">
             <button class="save-btn" onclick="saveParticipants()">保存</button>
           </div>
         </div>
-        <div class="section" style="border-left:3px solid var(--green);">
-          <div class="section-title" style="color:var(--green);">✅ 結論</div>
-          <div id="minConclusion" style="font-size:13px;line-height:1.9;color:#c8f7d8;white-space:pre-wrap;"></div>
+        <div class="section hero c-green">
+          <div class="section-title"><span class="ic"><svg class="icon"><use href="#i-check"/></svg></span>結論</div>
+          <div class="conclusion" id="minConclusion"></div>
         </div>
-        <div class="section" style="border-left:3px solid var(--yellow);">
-          <div class="section-title" style="color:var(--yellow);">⚠️ 残された課題と対策</div>
+        <div class="section c-amber">
+          <div class="section-title"><span class="ic"><svg class="icon"><use href="#i-alert"/></svg></span>残された課題と対策</div>
           <div id="minIssues"></div>
         </div>
-        <div class="section" style="border-left:3px solid var(--purple);">
-          <div class="section-title" style="color:var(--purple);">💬 議論されたこと</div>
-          <ul id="minDiscussion" style="padding-left:16px;"></ul>
+        <div class="section c-violet">
+          <div class="section-title"><span class="ic"><svg class="icon"><use href="#i-chat"/></svg></span>議論されたこと</div>
+          <ul id="minDiscussion" class="disc-list"></ul>
         </div>
-        <div class="section" style="border-left:3px solid var(--accent);">
-          <div class="section-title" style="color:var(--accent);">📋 タスク一覧</div>
-          <div style="overflow-x:auto;">
+        <div class="section">
+          <div class="section-title"><span class="ic"><svg class="icon"><use href="#i-list"/></svg></span>タスク一覧</div>
+          <div class="table-wrap">
             <table class="task-table">
               <thead><tr><th>タスク項目</th><th>内容</th><th>担当者</th><th>対応案</th><th>期限</th></tr></thead>
               <tbody id="minTasks"></tbody>
             </table>
           </div>
         </div>
-        <div class="section" style="border-left:3px solid var(--pink);">
-          <div class="section-title" style="color:var(--pink);">📅 スケジュール（ガントチャート）</div>
+        <div class="section c-rose">
+          <div class="section-title"><span class="ic"><svg class="icon"><use href="#i-cal"/></svg></span>スケジュール</div>
           <div class="gantt-wrap" id="minGantt"></div>
         </div>
-        <div class="section" style="border-left:3px solid var(--orange);">
-          <div class="section-title" style="color:var(--orange);">🚀 TOP5 改善案 & アクションプラン</div>
+        <div class="section c-orange">
+          <div class="section-title"><span class="ic"><svg class="icon"><use href="#i-rocket"/></svg></span>TOP5 改善案 &amp; アクションプラン</div>
           <div id="minImprovements"></div>
         </div>
-        <button class="copy-btn" id="copyBtn" onclick="copyMinutes()">📋 議事録テキストをコピー</button>
+        <button class="btn btn-primary copy-btn" id="copyBtn" onclick="copyMinutes()"><svg class="icon"><use href="#i-copy"/></svg><span id="copyLabel">議事録テキストをコピー</span></button>
         <div class="guide">
-          <div class="guide-title">📌 Googleサービス連携ガイド</div>
+          <div class="guide-title"><svg class="icon"><use href="#i-link"/></svg>Googleサービス連携ガイド</div>
           ① 「議事録テキストをコピー」ボタンでコピー<br>
-          ② <strong style="color:#ccc;">Google Drive「議事録」フォルダ</strong> → 新規ドキュメント→貼り付け<br>
+          ② <strong>Google Drive「議事録」フォルダ</strong> → 新規ドキュメント→貼り付け<br>
           &nbsp;&nbsp;&nbsp;ファイル名：<code id="guideFilename"></code><br>
-          ③ <strong style="color:#ccc;">Google Tasks</strong> → タスク一覧をTodo登録<br>
-          ④ <strong style="color:#ccc;">Google Calendar</strong> → 各タスク期限をイベント登録<br>
-          ⑤ <strong style="color:#ccc;">Google Drive「音声データ」フォルダ</strong> → 録音ファイルをアップロード
+          ③ <strong>Google Tasks</strong> → タスク一覧をTodo登録<br>
+          ④ <strong>Google Calendar</strong> → 各タスク期限をイベント登録<br>
+          ⑤ <strong>Google Drive「音声データ」フォルダ</strong> → 録音ファイルをアップロード
         </div>
       </div>
     </div>
-  </div>
+  </main>
 </div>
 
 <script>
@@ -287,7 +477,7 @@ let minutesData=null,currentParticipants='',currentDatetime='';
 function saveApiKey(){
   const k=document.getElementById('apiKeyInput').value.trim();
   if(!k.startsWith('sk-ant-')){
-    document.getElementById('apiError').textContent='⚠️ APIキーは sk-ant- から始まる文字列です';
+    document.getElementById('apiError').textContent='APIキーは sk-ant- から始まる文字列です';
     document.getElementById('apiError').classList.remove('hidden');
     return;
   }
@@ -319,13 +509,16 @@ window.addEventListener('DOMContentLoaded',()=>{
 function switchTab(id){
   ['record','form','minutes'].forEach(t=>{
     document.getElementById('pane-'+t).classList.toggle('hidden',t!==id);
-    document.getElementById('tab-'+t).classList.toggle('active',t===id);
+    const tb=document.getElementById('tab-'+t);
+    tb.classList.toggle('active',t===id);
+    tb.setAttribute('aria-selected',t===id);
   });
   if(id==='minutes'&&!minutesData){
     document.getElementById('minEmpty').classList.remove('hidden');
     document.getElementById('minContent').classList.add('hidden');
     document.getElementById('minLoading').classList.add('hidden');
   }
+  window.scrollTo({top:0});
 }
 
 // ── 録音 ──
@@ -346,19 +539,19 @@ async function startRec(){
     mediaRecorder.start();
     isRecording=true;
     document.getElementById('recBtn').classList.add('recording');
-    document.getElementById('recBtn').textContent='⏹';
-    document.getElementById('recStatus').textContent='● 録音中...';
+    document.getElementById('recCard').classList.add('live');
+    document.getElementById('recStatus').textContent='● REC 録音中...';
     document.getElementById('recStatus').classList.add('live');
     document.getElementById('stopWrap').classList.remove('hidden');
     startSR();
-  }catch(e){showError('マイクへのアクセスが拒否されました。アドレスバー左の🔒→「マイク→許可」にしてください。');}
+  }catch(e){showError('マイクへのアクセスが拒否されました。アドレスバー左の鍵アイコン →「マイク → 許可」にしてください。');}
 }
 function stopRec(){
   if(mediaRecorder&&isRecording){mediaRecorder.stop();mediaRecorder.stream.getTracks().forEach(t=>t.stop());}
   stopSR();isRecording=false;
   document.getElementById('recBtn').classList.remove('recording');
-  document.getElementById('recBtn').textContent='🎙';
-  document.getElementById('recStatus').textContent='録音完了！次のステップへ進んでください';
+  document.getElementById('recCard').classList.remove('live');
+  document.getElementById('recStatus').textContent='録音完了。次のステップへ進んでください';
   document.getElementById('recStatus').classList.remove('live');
   document.getElementById('stopWrap').classList.add('hidden');
   document.getElementById('transcriptInput').value=liveTranscript;
@@ -431,7 +624,7 @@ function renderMinutes(transcript){
   const m=minutesData;
   document.getElementById('minLoading').classList.add('hidden');
   document.getElementById('minContent').classList.remove('hidden');
-  document.getElementById('minTitle').textContent='📄 '+(m.title||'議事録');
+  document.getElementById('minTitle').textContent=m.title||'議事録';
   document.getElementById('minDatetime').textContent=currentDatetime;
   document.getElementById('minParticipants').textContent=currentParticipants||'（未設定）';
   const fd=new Date();
@@ -441,12 +634,12 @@ function renderMinutes(transcript){
   const iss=document.getElementById('minIssues');iss.innerHTML='';
   (m.issues||[]).forEach(i=>{iss.innerHTML+=`<div class="issue-card"><div class="issue-title">課題：${esc(i.issue)}</div><div class="issue-measure">対策：${esc(i.measure)}</div></div>`;});
   const dis=document.getElementById('minDiscussion');dis.innerHTML='';
-  (m.discussion||[]).forEach(d=>{const li=document.createElement('li');li.style.cssText='color:#d4c8ff;font-size:13px;line-height:1.9;';li.textContent=d;dis.appendChild(li);});
+  (m.discussion||[]).forEach(d=>{const li=document.createElement('li');li.textContent=d;dis.appendChild(li);});
   const tk=document.getElementById('minTasks');tk.innerHTML='';
-  (m.tasks||[]).forEach(t=>{tk.innerHTML+=`<tr><td style="color:#e0e0e0">${esc(t.item)}</td><td style="color:#aaa">${esc(t.detail)}</td><td style="color:var(--accent)">${esc(t.owner)}</td><td style="color:#aaa">${esc(t.plan)}</td><td style="color:var(--yellow);white-space:nowrap">${esc(t.deadline)}</td></tr>`;});
+  (m.tasks||[]).forEach(t=>{tk.innerHTML+=`<tr><td class="t-item">${esc(t.item)}</td><td>${esc(t.detail)}</td><td class="t-owner">${esc(t.owner)}</td><td>${esc(t.plan)}</td><td class="t-due">${esc(t.deadline)}</td></tr>`;});
   renderGantt(m.tasks||[]);
   const imp=document.getElementById('minImprovements');imp.innerHTML='';
-  (m.improvements||[]).forEach(i=>{imp.innerHTML+=`<div class="imp-card"><div class="imp-rank">#${i.rank} ${esc(i.title)}</div><div class="imp-action">▶ ${esc(i.action)}</div></div>`;});
+  (m.improvements||[]).forEach(i=>{imp.innerHTML+=`<div class="imp-card"><div class="imp-num">${String(i.rank).padStart(2,'0')}</div><div><div class="imp-rank">${esc(i.title)}</div><div class="imp-action">${esc(i.action)}</div></div></div>`;});
   window._lastTranscript=transcript;
 }
 
@@ -454,7 +647,7 @@ function renderGantt(tasks){
   const el=document.getElementById('minGantt');
   const today=new Date();
   const dates=tasks.map(t=>{if(!t.deadline)return null;const p=t.deadline.split('/');return p.length===3?new Date(+p[0],+p[1]-1,+p[2]):null;}).filter(Boolean);
-  if(!dates.length){el.innerHTML='<p style="color:#556;font-size:12px;">期限が設定されたタスクがありません</p>';return;}
+  if(!dates.length){el.innerHTML='<p class="gantt-empty">期限が設定されたタスクがありません</p>';return;}
   const minD=new Date(Math.min(...dates));minD.setDate(minD.getDate()-2);
   const maxD=new Date(Math.max(...dates));maxD.setDate(maxD.getDate()+2);
   const totalMs=maxD-minD;const totalDays=totalMs/86400000;
@@ -470,9 +663,9 @@ function renderGantt(tasks){
     const bw=Math.max(eOff-sOff,1);
     const tOff=Math.max(0,Math.min(((today-minD)/totalMs)*100,100));
     const over=end<today;
-    rows+=`<div class="gantt-row"><div class="gantt-label" title="${esc(task.item)}">${esc(task.item)}</div><div class="gantt-track"><div class="gantt-bar" style="left:${sOff}%;width:${bw}%;background:${over?'linear-gradient(90deg,#ff4444,#ff8888)':'linear-gradient(90deg,#00d4ff,#0080ff)'};box-shadow:${over?'0 0 6px #ff4444':'0 0 6px #00d4ff'};"></div><div class="gantt-today" style="left:${tOff}%;"></div></div></div>`;
+    rows+=`<div class="gantt-row"><div class="gantt-label" title="${esc(task.item)}">${esc(task.item)}</div><div class="gantt-track"><div class="gantt-bar${over?' over':''}" style="left:${sOff}%;width:${bw}%;"></div><div class="gantt-today" style="left:${tOff}%;"></div></div></div>`;
   });
-  el.innerHTML=hdr+rows;
+  el.innerHTML='<div class="gantt-inner">'+hdr+rows+'</div>';
 }
 
 // ── 参加者編集 ──
@@ -497,16 +690,17 @@ function copyMinutes(){
   const disc=(m.discussion||[]).map((d,i)=>`  ${i+1}. ${d}`).join('\n');
   const imps=(m.improvements||[]).map(i=>`  #${i.rank} ${i.title}\n    ${i.action}`).join('\n');
   const text=`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【議事録】${m.title}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n日時：${currentDatetime}\n参加者：${currentParticipants||'（未設定）'}\n\n■ 結論\n${m.conclusion}\n\n■ 残された課題と対策\n${issues}\n\n■ 議論されたこと\n${disc}\n\n■ タスク一覧\n${tasks}\n\n■ TOP5 改善案\n${imps}\n\n■ 文字起こし（原文）\n${window._lastTranscript||''}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`.trim();
-  const btn=document.getElementById('copyBtn');
+  const lbl=document.getElementById('copyLabel');
+  const done=()=>{lbl.textContent='コピーしました';setTimeout(()=>{lbl.textContent='議事録テキストをコピー';},2500);};
   if(navigator.clipboard){
-    navigator.clipboard.writeText(text).then(()=>{btn.textContent='✅ コピー完了！';setTimeout(()=>{btn.textContent='📋 議事録テキストをコピー';},2500);});
+    navigator.clipboard.writeText(text).then(done);
   }else{
     const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;opacity:0;';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
-    btn.textContent='✅ コピー完了！';setTimeout(()=>{btn.textContent='📋 議事録テキストをコピー';},2500);
+    done();
   }
 }
 
-function showError(msg){const e=document.getElementById('errorBox');if(msg){e.textContent='⚠️ '+msg;e.classList.remove('hidden');}else{e.classList.add('hidden');}}
+function showError(msg){const e=document.getElementById('errorBox');if(msg){e.textContent=msg;e.classList.remove('hidden');}else{e.classList.add('hidden');}}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 </script>
 </body>
